@@ -121,11 +121,13 @@ class MacroProject:
     def __init__(self):
         self.macros: List[MacroSequence] = []
         self.triggers: List[TriggerConfig] = []
+        self.hotkey: str = '<f9>'
 
     def to_dict(self) -> dict:
         return {
             'macros': [m.to_dict() for m in self.macros],
             'triggers': [t.to_dict() for t in self.triggers],
+            'hotkey': self.hotkey,
         }
 
     @staticmethod
@@ -133,6 +135,7 @@ class MacroProject:
         p = MacroProject()
         p.macros = [MacroSequence.from_dict(m) for m in d.get('macros', [])]
         p.triggers = [TriggerConfig.from_dict(t) for t in d.get('triggers', [])]
+        p.hotkey = d.get('hotkey', '<f9>')
         return p
 
     def save(self, path: str):

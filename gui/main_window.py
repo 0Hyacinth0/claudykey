@@ -9,9 +9,59 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSplitter,
     QListWidget, QListWidgetItem, QPushButton, QLabel, QFrame,
     QStackedWidget, QFileDialog, QMessageBox, QSizePolicy,
-    QInputDialog,
+    QInputDialog, QComboBox, QDialog,
 )
 from pynput import keyboard as pynput_kb
+from pynput import mouse as pynput_mouse
+
+class HotkeySetDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('设置启停快捷键')
+        self.setFixedSize(300, 160)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
+        
+        lay = QVBoxLayout(self)
+        self.lbl = QLabel('正在监听...\n\n请按下任意键盘按键或\n除左键外的鼠标按键。')
+        self.lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl.setStyleSheet('font-size: 14px; color: #d15c89; font-weight: bold;')
+        lay.addWidget(self.lbl)
+        
+        self.result_key = None
+        
+        self.kb_listener = pynput_kb.Listener(on_press=self.on_key)
+        self.mouse_listener = pynput_mouse.Listener(on_click=self.on_mouse)
+        self.kb_listener.start()
+        self.mouse_listener.start()
+
+    def on_key(self, key):
+        if self.result_key: return
+        try:
+            char = key.char
+            if char:
+                self.result_key = f"key:{char.lower()}"
+            else:
+                self.result_key = f"key:<{key.name}>"
+        except AttributeError:
+            self.result_key = f"key:<{key.name}>"
+        self.accept_from_thread()
+
+    def on_mouse(self, x, y, button, pressed):
+        if not pressed or self.result_key: return
+        if button == pynput_mouse.Button.left:
+            return  # block left click
+        self.result_key = f"mouse:{button.name}"
+        self.accept_from_thread()
+
+    def accept_from_thread(self):
+        self.kb_listener.stop()
+        self.mouse_listener.stop()
+        QTimer.singleShot(0, self.accept)
+
+    def closeEvent(self, event):
+        self.kb_listener.stop()
+        self.mouse_listener.stop()
+        super().closeEvent(event)
 
 from core.macro import MacroProject, MacroSequence, TriggerConfig
 from core.executor import MacroExecutor
@@ -33,7 +83,6 @@ class MainWindow(QMainWindow):
     DEFAULT_PROJ = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         'config', 'macros', 'default.json')
-    HOTKEY = '<f9>'
 
     def __init__(self):
         super().__init__()
@@ -47,6 +96,8 @@ class MainWindow(QMainWindow):
         self._bridge = _Bridge()
         self._current_proj_path: str = ''
         self._running = False
+        self._listener_kb = None
+        self._listener_mouse = None
 
         self._bridge.step_changed.connect(self._on_step)
         self._bridge.macro_done.connect(self._on_macro_done)
@@ -91,18 +142,26 @@ class MainWindow(QMainWindow):
         lay.addWidget(logo)
         lay.addSpacing(20)
 
-        # Run / Stop
-        self._btn_run = QPushButton('▶  运行  (F9)')
+        self._btn_run = QPushButton('▶  运行')
         self._btn_run.setObjectName('btn_run')
         self._btn_run.clicked.connect(self._start_all)
 
-        self._btn_stop = QPushButton('■  停止  (F9)')
+        self._btn_stop = QPushButton('■  停止')
         self._btn_stop.setObjectName('btn_stop')
         self._btn_stop.clicked.connect(self._stop_all)
         self._btn_stop.setEnabled(False)
 
         lay.addWidget(self._btn_run)
         lay.addWidget(self._btn_stop)
+        lay.addSpacing(15)
+        
+        lay.addWidget(QLabel('⚡ 快捷键:'))
+        self._hotkey_btn = QPushButton("设置: F9")
+        self._hotkey_btn.setToolTip("点击设置全局启动/停止的热键")
+        self._hotkey_btn.clicked.connect(self._on_hotkey_setup)
+        self._hotkey_btn.setFixedWidth(120)
+        lay.addWidget(self._hotkey_btn)
+
         lay.addStretch()
 
         # File buttons
@@ -218,7 +277,7 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(12, 0, 12, 0)
         self._status_lbl = QLabel('就绪')
         self._status_lbl.setObjectName('lbl_status_ok')
-        self._hotkey_lbl = QLabel('全局热键: F9 开始 / 停止')
+        self._hotkey_lbl = QLabel('全局热键: 未知')
         self._hotkey_lbl.setStyleSheet('color:#9c7b8c;')
         self._file_lbl = QLabel('')
         self._file_lbl.setStyleSheet('color:#9c7b8c;')
@@ -312,6 +371,7 @@ class MainWindow(QMainWindow):
         self._refresh_trigger_list()
         self.stack.setCurrentIndex(0)
         self._file_lbl.setText('')
+        self._register_hotkey()
         self._new_macro()
 
     def _save_project(self):
@@ -343,6 +403,7 @@ class MainWindow(QMainWindow):
             self._refresh_trigger_list()
             self.stack.setCurrentIndex(0)
             self._file_lbl.setText(os.path.basename(path))
+            self._register_hotkey()
             self._set_status('项目已加载', 'ok')
         except Exception as e:
             QMessageBox.critical(self, '加载失败', str(e))
@@ -466,23 +527,54 @@ class MainWindow(QMainWindow):
         self._status_lbl.setText(msg)
         self._status_lbl.setStyleSheet(styles.get(kind, ''))
 
-    # ══════════════════════════════════════════════════════════════
-    #  Global hotkey F9
-    # ══════════════════════════════════════════════════════════════
+    def _on_hotkey_setup(self):
+        dlg = HotkeySetDialog(self)
+        if dlg.exec() and dlg.result_key:
+            self.project.hotkey = dlg.result_key
+            self._register_hotkey()
+            self._on_project_changed()
+
     def _register_hotkey(self):
-        def on_activate():
+        if getattr(self, '_listener_kb', None):
+            self._listener_kb.stop()
+            self._listener_kb = None
+        if getattr(self, '_listener_mouse', None):
+            self._listener_mouse.stop()
+            self._listener_mouse = None
+
+        def toggle():
             if self._running:
                 self._bridge.macro_done.emit()  # reuse signal to stop
                 self._stop_all()
             else:
                 self._start_all()
 
-        def listener_thread():
-            with pynput_kb.GlobalHotKeys({self.HOTKEY: on_activate}) as h:
-                h.join()
+        key_conf = self.project.hotkey
+        if not key_conf.startswith('key:') and not key_conf.startswith('mouse:'):
+            key_conf = f"key:<{key_conf.strip('<>')}>"
+            self.project.hotkey = key_conf
 
-        t = threading.Thread(target=listener_thread, daemon=True)
-        t.start()
+        try:
+            if key_conf.startswith('key:'):
+                k = key_conf[4:]
+                self._listener_kb = pynput_kb.GlobalHotKeys({k: toggle})
+                self._listener_kb.start()
+            elif key_conf.startswith('mouse:'):
+                m = key_conf[6:]
+                def on_click(x, y, button, pressed):
+                    if pressed and button.name == m:
+                        toggle()
+                self._listener_mouse = pynput_mouse.Listener(on_click=on_click)
+                self._listener_mouse.start()
+
+            # Update UI labels
+            display = key_conf.replace('key:', '').replace('mouse:', 'Mouse ').upper().strip('<>')
+            self._btn_run.setText(f'▶  运行  ({display})')
+            self._btn_stop.setText(f'■  停止  ({display})')
+            self._hotkey_btn.setText(f'设置: {display}')
+            self._hotkey_lbl.setText(f'全局热键: {display} 开始 / 停止')
+        except Exception as e:
+            self._set_status(f"热键绑定失败: {e}", "err")
 
     # ══════════════════════════════════════════════════════════════
     #  Window close

@@ -262,7 +262,8 @@ class MacroEditorPanel(QWidget):
 
         # Run this macro button
         run_row = QHBoxLayout()
-        self._btn_run_solo = QPushButton('▶  运行此宏')
+        self._btn_run_solo = QPushButton('▶  测试当前宏')
+        self._btn_run_solo.setToolTip('仅运行一次此宏进行测试，不开启全局触发检测')
         self._btn_run_solo.setObjectName('btn_run')
         self._btn_run_solo.clicked.connect(self._run_solo)
         run_row.addStretch()
