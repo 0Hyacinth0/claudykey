@@ -10,9 +10,10 @@ import io
 import zipfile
 import shutil
 import urllib.request
+import urllib.error
 
 REPO_URL = "https://github.com/0Hyacinth0/claudykey"
-ZIP_URL = REPO_URL + "/archive/refs/heads/main.zip"
+BRANCH_TRIES = ["main", "master"]
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # These folders/files will NOT be overwritten
@@ -50,12 +51,23 @@ def main():
     # Download ZIP
     print()
     print("[1/3] Downloading latest code from GitHub...")
-    try:
-        resp = urllib.request.urlopen(ZIP_URL)
-        data = resp.read()
-        print(f"       Downloaded {len(data) // 1024} KB")
-    except Exception as e:
-        print(f"[ERROR] Download failed: {e}")
+    data = None
+    for branch in BRANCH_TRIES:
+        url = f"{REPO_URL}/archive/refs/heads/{branch}.zip"
+        print(f"       Trying branch: {branch} ...")
+        try:
+            resp = urllib.request.urlopen(url)
+            data = resp.read()
+            print(f"       OK! Downloaded {len(data) // 1024} KB")
+            break
+        except urllib.error.HTTPError:
+            print(f"       Branch '{branch}' not found, trying next...")
+        except Exception as e:
+            print(f"       Failed: {e}")
+
+    if data is None:
+        print("[ERROR] Could not download from any branch (main/master).")
+        print(f"        Please check: {REPO_URL}")
         input("Press Enter to exit...")
         sys.exit(1)
 
