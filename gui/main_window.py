@@ -666,6 +666,15 @@ class MainWindow(QMainWindow):
         self._status_lbl.setText(msg)
         self._status_lbl.setStyleSheet(styles.get(kind, ''))
 
+    def _append_log(self, msg: str):
+        import time
+        t = time.strftime('%H:%M:%S')
+        # We use a simple HTML format to allow colors in the log view
+        self.log_view.append(f'<span style="color:#8c6e7d">[{t}]</span> {msg}')
+        # Auto-scroll to bottom
+        vbar = self.log_view.verticalScrollBar()
+        vbar.setValue(vbar.maximum())
+
     def _on_hotkey_setup(self):
         dlg = HotkeySetDialog(self)
         if dlg.exec() and dlg.result_key:
