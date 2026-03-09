@@ -23,13 +23,8 @@ def _warm_up_ocr():
 
 
 def main():
-    # Windows: enable DPI awareness
-    if sys.platform == 'win32':
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)
-        except Exception:
-            pass
+    # Qt6 handles high-DPI natively, no manual ctypes call needed
+    os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 
     app = QApplication(sys.argv)
     app.setApplicationName('ClaudyKey')
