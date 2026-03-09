@@ -246,11 +246,14 @@ class MainWindow(QMainWindow):
         lay.addLayout(macro_hdr)
 
         self.macro_list = QListWidget()
-        self.macro_list.setMaximumHeight(220)
         self.macro_list.currentRowChanged.connect(self._on_macro_selected)
-        lay.addWidget(self.macro_list)
+        lay.addWidget(self.macro_list, 1)
 
         # ── Trigger list ──
+        self._trigger_container = QWidget()
+        trig_lay = QVBoxLayout(self._trigger_container)
+        trig_lay.setContentsMargins(0, 0, 0, 0)
+
         trig_hdr = QHBoxLayout()
         lbl2 = QLabel('触发器 TRIGGERS')
         lbl2.setObjectName('lbl_section')
@@ -267,12 +270,14 @@ class MainWindow(QMainWindow):
         trig_hdr.addWidget(lbl2, 1)
         trig_hdr.addWidget(btn_add_trig)
         trig_hdr.addWidget(btn_del_trig)
-        lay.addLayout(trig_hdr)
+        trig_lay.addLayout(trig_hdr)
 
         self.trigger_list = QListWidget()
         self.trigger_list.setMinimumHeight(80)
         self.trigger_list.currentRowChanged.connect(self._on_trigger_selected)
-        lay.addWidget(self.trigger_list, 1)
+        trig_lay.addWidget(self.trigger_list, 1)
+
+        lay.addWidget(self._trigger_container, 1)
 
         return side
 
@@ -452,9 +457,21 @@ class MainWindow(QMainWindow):
         m = self.project.mode
         self._btn_mode_loop.setChecked(m == 'loop')
         self._btn_mode_cond.setChecked(m == 'conditional')
+        
+        # Toggle trigger container visibility
+        if hasattr(self, '_trigger_container'):
+            self._trigger_container.setVisible(m == 'conditional')
+            
         if m == 'loop':
             self._btn_run.setText('▶  开始循环')
             self._btn_stop.setText('■  停止循环')
+            # If a trigger was selected, switch to macro 0 or empty to keep UI clean
+            if self.stack.currentWidget() == self.trigger_editor:
+                self.trigger_list.clearSelection()
+                if self.project.macros:
+                    self.macro_list.setCurrentRow(0)
+                else:
+                    self.stack.setCurrentIndex(0)
         else:
             self._btn_run.setText('🔍  开始巡检')
             self._btn_stop.setText('■  停止巡检')
