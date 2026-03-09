@@ -55,18 +55,24 @@ class MacroSequence:
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     name: str = '新建宏'
     actions: List[Action] = field(default_factory=list)
+    random_delay_min_ms: int = 50    # Minimum random delay between actions (ms)
+    random_delay_max_ms: int = 200   # Maximum random delay between actions (ms)
 
     def to_dict(self) -> dict:
         return {
             'id': self.id,
             'name': self.name,
             'actions': [a.to_dict() for a in self.actions],
+            'random_delay_min_ms': self.random_delay_min_ms,
+            'random_delay_max_ms': self.random_delay_max_ms,
         }
 
     @staticmethod
     def from_dict(d: dict) -> 'MacroSequence':
         m = MacroSequence(id=d['id'], name=d['name'])
         m.actions = [Action.from_dict(a) for a in d.get('actions', [])]
+        m.random_delay_min_ms = d.get('random_delay_min_ms', 50)
+        m.random_delay_max_ms = d.get('random_delay_max_ms', 200)
         return m
 
 

@@ -176,6 +176,30 @@ class MacroEditorPanel(QWidget):
         name_row.addWidget(self.name_edit)
         root.addLayout(name_row)
 
+        # Random delay row
+        delay_row = QHBoxLayout()
+        delay_row.addWidget(QLabel('🎲 随机延迟:'))
+        self._delay_min = QSpinBox()
+        self._delay_min.setRange(0, 5000)
+        self._delay_min.setSuffix(' ms')
+        self._delay_min.setValue(50)
+        self._delay_min.setToolTip('每个动作前的最小随机延迟')
+        self._delay_min.valueChanged.connect(self._on_delay_changed)
+        delay_row.addWidget(self._delay_min)
+        delay_row.addWidget(QLabel('~'))
+        self._delay_max = QSpinBox()
+        self._delay_max.setRange(0, 5000)
+        self._delay_max.setSuffix(' ms')
+        self._delay_max.setValue(200)
+        self._delay_max.setToolTip('每个动作前的最大随机延迟')
+        self._delay_max.valueChanged.connect(self._on_delay_changed)
+        delay_row.addWidget(self._delay_max)
+        delay_hint = QLabel('拟真')
+        delay_hint.setStyleSheet('color:#5050a0;font-size:11px;')
+        delay_row.addWidget(delay_hint)
+        delay_row.addStretch()
+        root.addLayout(delay_row)
+
         # Toolbar
         tb = QHBoxLayout()
         self._btn_add = self._tb_btn('➕', '添加动作', self._add_action)
@@ -218,6 +242,8 @@ class MacroEditorPanel(QWidget):
     def load_sequence(self, seq: MacroSequence):
         self.sequence = seq
         self.name_edit.setText(seq.name)
+        self._delay_min.setValue(seq.random_delay_min_ms)
+        self._delay_max.setValue(seq.random_delay_max_ms)
         self._refresh_list()
 
     def _refresh_list(self):
@@ -241,6 +267,12 @@ class MacroEditorPanel(QWidget):
             elif a.type == 'loop_end':
                 depth = max(0, depth - 1)
         return '    ' * depth
+
+    def _on_delay_changed(self):
+        if self.sequence:
+            self.sequence.random_delay_min_ms = self._delay_min.value()
+            self.sequence.random_delay_max_ms = self._delay_max.value()
+            self.changed.emit()
 
     def highlight_step(self, index: int):
         self._current_step = index

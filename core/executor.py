@@ -1,4 +1,5 @@
 """Macro execution engine — runs a MacroSequence in a background thread."""
+import random
 import threading
 import time
 from typing import List, Optional, Callable
@@ -94,6 +95,18 @@ class MacroExecutor(threading.Thread):
                     return
                 time.sleep(0.02)
 
+    def _random_sleep(self):
+        """Sleep for a random duration between min and max delay settings."""
+        lo = self.sequence.random_delay_min_ms
+        hi = self.sequence.random_delay_max_ms
+        if hi > 0 and lo >= 0:
+            ms = random.randint(lo, max(lo, hi))
+            deadline = time.monotonic() + ms / 1000.0
+            while time.monotonic() < deadline:
+                if self._stop.is_set():
+                    return
+                time.sleep(0.01)
+
     # ------------------------------------------------------------------ runner
     def _run_slice(self, actions: List[Action], start: int, end: int):
         """Execute actions[start:end] handling nested loops."""
@@ -123,6 +136,7 @@ class MacroExecutor(threading.Thread):
             else:
                 if self.on_step:
                     self.on_step(i)
+                self._random_sleep()
                 self._do_action(a)
                 i += 1
 
