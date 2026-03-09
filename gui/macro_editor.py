@@ -59,17 +59,12 @@ class ActionDialog(QDialog):
         self.form_layout.setSpacing(8)
         layout.addWidget(self.form_frame)
 
-        # Param widgets
-        self._x = QSpinBox(); self._x.setRange(-9999, 9999)
-        self._y = QSpinBox(); self._y.setRange(-9999, 9999)
-        self._key = QLineEdit(); self._key.setPlaceholderText('ctrl+c  /  f5  /  enter')
-        self._ms = QSpinBox(); self._ms.setRange(1, 60000); self._ms.setSuffix(' ms')
-        self._count = QSpinBox(); self._count.setRange(-1, 9999)
-        self._count.setSpecialValueText('∞ 无限循环'); self._count.setValue(3)
-
-        self._btn_pick = QPushButton('🎯  屏幕拾取坐标')
-        self._btn_pick.setObjectName('btn_accent')
-        self._btn_pick.clicked.connect(self._pick_point)
+        # Stored param values (survive widget recreation)
+        self._val_x = 0
+        self._val_y = 0
+        self._val_key = ''
+        self._val_ms = 500
+        self._val_count = 3
 
         # Buttons
         btns = QDialogButtonBox(
@@ -84,36 +79,78 @@ class ActionDialog(QDialog):
                         if c == action.type), 0)
             self.type_combo.setCurrentIndex(idx)
             p = action.params
-            self._x.setValue(p.get('x', 0))
-            self._y.setValue(p.get('y', 0))
-            self._key.setText(p.get('key', ''))
-            self._ms.setValue(p.get('ms', 500))
-            self._count.setValue(p.get('count', 3))
+            self._val_x = p.get('x', 0)
+            self._val_y = p.get('y', 0)
+            self._val_key = p.get('key', '')
+            self._val_ms = p.get('ms', 500)
+            self._val_count = p.get('count', 3)
         else:
             self.type_combo.setCurrentIndex(0)
 
         self._on_type_changed()
 
     def _clear_form(self):
+        # Save current widget values before destroying them
+        self._sync_values_from_widgets()
         while self.form_layout.rowCount():
             self.form_layout.removeRow(0)
+
+    def _sync_values_from_widgets(self):
+        """Save current widget values to plain Python vars."""
+        if hasattr(self, '_w_x') and self._w_x is not None:
+            try:
+                self._val_x = self._w_x.value()
+                self._val_y = self._w_y.value()
+            except RuntimeError:
+                pass
+        if hasattr(self, '_w_key') and self._w_key is not None:
+            try:
+                self._val_key = self._w_key.text()
+            except RuntimeError:
+                pass
+        if hasattr(self, '_w_ms') and self._w_ms is not None:
+            try:
+                self._val_ms = self._w_ms.value()
+            except RuntimeError:
+                pass
+        if hasattr(self, '_w_count') and self._w_count is not None:
+            try:
+                self._val_count = self._w_count.value()
+            except RuntimeError:
+                pass
 
     def _on_type_changed(self):
         self._clear_form()
         t = self.type_combo.currentData()
+        # Reset widget refs
+        self._w_x = self._w_y = self._w_key = self._w_ms = self._w_count = None
+
         if t in ('click', 'right_click', 'double_click', 'move'):
-            self.form_layout.addRow('X 坐标:', self._x)
-            self.form_layout.addRow('Y 坐标:', self._y)
-            self.form_layout.addRow('', self._btn_pick)
+            self._w_x = QSpinBox(); self._w_x.setRange(-9999, 9999); self._w_x.setValue(self._val_x)
+            self._w_y = QSpinBox(); self._w_y.setRange(-9999, 9999); self._w_y.setValue(self._val_y)
+            btn_pick = QPushButton('🎯  屏幕拾取坐标')
+            btn_pick.setObjectName('btn_accent')
+            btn_pick.clicked.connect(self._pick_point)
+            self.form_layout.addRow('X 坐标:', self._w_x)
+            self.form_layout.addRow('Y 坐标:', self._w_y)
+            self.form_layout.addRow('', btn_pick)
         elif t == 'key':
-            self.form_layout.addRow('按键组合:', self._key)
+            self._w_key = QLineEdit()
+            self._w_key.setPlaceholderText('ctrl+c  /  f5  /  enter')
+            self._w_key.setText(self._val_key)
+            self.form_layout.addRow('按键组合:', self._w_key)
             hint = QLabel('示例: ctrl+c、f5、alt+F4、enter')
             hint.setStyleSheet('color:#5050a0;font-size:11px;')
             self.form_layout.addRow('', hint)
         elif t == 'delay':
-            self.form_layout.addRow('等待时间:', self._ms)
+            self._w_ms = QSpinBox(); self._w_ms.setRange(1, 60000)
+            self._w_ms.setSuffix(' ms'); self._w_ms.setValue(self._val_ms)
+            self.form_layout.addRow('等待时间:', self._w_ms)
         elif t == 'loop_start':
-            self.form_layout.addRow('循环次数:', self._count)
+            self._w_count = QSpinBox(); self._w_count.setRange(-1, 9999)
+            self._w_count.setSpecialValueText('∞ 无限循环')
+            self._w_count.setValue(self._val_count)
+            self.form_layout.addRow('循环次数:', self._w_count)
             hint = QLabel('-1 = 无限循环，直到手动停止')
             hint.setStyleSheet('color:#5050a0;font-size:11px;')
             self.form_layout.addRow('', hint)
@@ -123,27 +160,30 @@ class ActionDialog(QDialog):
             self.form_layout.addRow(lbl)
 
     def _pick_point(self):
+        self._sync_values_from_widgets()
         self.hide()
         self._picker = PointSelector()
         self._picker.point_selected.connect(self._on_point_picked)
         self._picker.cancelled.connect(self.show)
 
     def _on_point_picked(self, x: int, y: int):
-        self._x.setValue(x)
-        self._y.setValue(y)
+        self._val_x = x
+        self._val_y = y
         self.show()
+        self._on_type_changed()  # Rebuild form with new values
 
     def get_action(self) -> Action:
+        self._sync_values_from_widgets()
         t = self.type_combo.currentData()
         params = {}
         if t in ('click', 'right_click', 'double_click', 'move'):
-            params = {'x': self._x.value(), 'y': self._y.value()}
+            params = {'x': self._val_x, 'y': self._val_y}
         elif t == 'key':
-            params = {'key': self._key.text().strip()}
+            params = {'key': self._val_key.strip()}
         elif t == 'delay':
-            params = {'ms': self._ms.value()}
+            params = {'ms': self._val_ms}
         elif t == 'loop_start':
-            params = {'count': self._count.value()}
+            params = {'count': self._val_count}
         return Action(type=t, params=params)
 
 
