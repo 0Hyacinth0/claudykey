@@ -320,7 +320,7 @@ class MacroEditorPanel(QWidget):
         for i in range(self.list.count()):
             item = self.list.item(i)
             if item.data(Qt.ItemDataRole.UserRole) == index:
-                item.setBackground(QColor(30, 60, 30))
+                item.setBackground(QColor(245, 190, 210))
             else:
                 item.setBackground(QColor(0, 0, 0, 0))
 

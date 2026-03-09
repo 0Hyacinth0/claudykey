@@ -429,10 +429,21 @@ class MainWindow(QMainWindow):
                 enabled, self._on_trigger_fired_bg)
             self._trigger_engine.start()
 
-        # Run first macro (simple mode — run selected macro)
+        # Run the currently viewed or selected macro
+        seq = None
         row = self.macro_list.currentRow()
         if 0 <= row < len(self.project.macros):
-            self._run_macro(self.project.macros[row])
+            seq = self.project.macros[row]
+        elif getattr(self.macro_editor, 'sequence', None) and self.macro_editor.sequence in self.project.macros:
+            seq = self.macro_editor.sequence
+        elif self.project.macros:
+            seq = self.project.macros[0]
+            
+        if seq:
+            self._run_macro(seq)
+        elif not enabled:
+            self._set_status('没有要运行的宏或触发器', 'err')
+            self._stop_all()
 
     def _run_macro(self, seq):
         if self._executor and self._executor.is_alive():
