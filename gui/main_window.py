@@ -130,18 +130,22 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self) -> QFrame:
         bar = QFrame()
         bar.setObjectName('toolbar')
-        bar.setFixedHeight(52)
+        bar.setFixedHeight(60)
         lay = QHBoxLayout(bar)
-        lay.setContentsMargins(12, 0, 12, 0)
-        lay.setSpacing(8)
+        lay.setContentsMargins(18, 0, 18, 0)
+        lay.setSpacing(10)
 
         # Logo
-        logo = QLabel('⌨ ClaudyKey')
-        logo.setFont(QFont('Segoe UI', 14, QFont.Weight.Bold))
-        logo.setStyleSheet('color:#d15c89;')
+        logo = QLabel('⌨  ClaudyKey')
+        logo.setFont(QFont('Segoe UI', 16, QFont.Weight.Bold))
+        logo.setStyleSheet('color: qlineargradient(x1:0,y1:0,x2:1,y2:0,'
+                           'stop:0 #d15c89, stop:1 #a855f7);'
+                           'font-size:16px; font-weight:900; letter-spacing:1px;'
+                           'color:#d15c89;')
         lay.addWidget(logo)
-        lay.addSpacing(20)
+        lay.addSpacing(24)
 
+        # ── Control group ──
         self._btn_run = QPushButton('▶  运行')
         self._btn_run.setObjectName('btn_run')
         self._btn_run.clicked.connect(self._start_all)
@@ -153,20 +157,23 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(self._btn_run)
         lay.addWidget(self._btn_stop)
-        lay.addSpacing(15)
-        
-        lay.addWidget(QLabel('⚡ 快捷键:'))
-        self._hotkey_btn = QPushButton("设置: F9")
-        self._hotkey_btn.setToolTip("点击设置全局启动/停止的热键")
+        lay.addSpacing(12)
+
+        # ── Hotkey ──
+        hk_lbl = QLabel('⚡ 快捷键')
+        hk_lbl.setStyleSheet('color:#a0889a; font-size:12px;')
+        lay.addWidget(hk_lbl)
+        self._hotkey_btn = QPushButton('设置: F9')
+        self._hotkey_btn.setToolTip('点击设置全局启动/停止的热键')
         self._hotkey_btn.clicked.connect(self._on_hotkey_setup)
         self._hotkey_btn.setFixedWidth(120)
         lay.addWidget(self._hotkey_btn)
 
         lay.addStretch()
 
-        # File buttons
+        # ── File buttons ──
         for label, tip, slot in [
-            ('🗁 打开', '打开项目', self._open_project),
+            ('📂 打开', '打开项目', self._open_project),
             ('💾 保存', '保存项目', self._save_project),
             ('📄 新建', '新建项目', self._new_project),
         ]:
@@ -179,19 +186,18 @@ class MainWindow(QMainWindow):
 
     def _build_body(self) -> QSplitter:
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(4)
-        splitter.setStyleSheet('QSplitter::handle{background:rgba(240, 215, 225, 0.6); border-radius: 2px;}')
+        splitter.setHandleWidth(5)
         splitter.addWidget(self._build_sidebar())
         splitter.addWidget(self._build_editor_area())
-        splitter.setSizes([240, 860])
+        splitter.setSizes([250, 850])
         return splitter
 
     def _build_sidebar(self) -> QFrame:
         side = QFrame()
         side.setObjectName('sidebar')
-        side.setFixedWidth(220)
+        side.setFixedWidth(240)
         lay = QVBoxLayout(side)
-        lay.setContentsMargins(8, 8, 8, 8)
+        lay.setContentsMargins(12, 14, 12, 12)
         lay.setSpacing(6)
 
         # ── Macro list ──
@@ -247,13 +253,13 @@ class MainWindow(QMainWindow):
     def _build_editor_area(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
-        lay.setContentsMargins(12, 8, 12, 8)
+        lay.setContentsMargins(16, 14, 16, 14)
         self.stack = QStackedWidget()
 
         # Page 0: placeholder
         placeholder = QLabel('← 从左侧选择宏或触发器')
         placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet('color:#ab6a84;font-size:16px;font-weight:bold;')
+        placeholder.setStyleSheet('color:rgba(160,100,135,0.5);font-size:16px;font-weight:bold;')
         self.stack.addWidget(placeholder)
 
         # Page 1: macro editor
@@ -272,15 +278,15 @@ class MainWindow(QMainWindow):
     def _build_statusbar(self) -> QFrame:
         bar = QFrame()
         bar.setObjectName('statusbar_frame')
-        bar.setFixedHeight(28)
+        bar.setFixedHeight(32)
         lay = QHBoxLayout(bar)
-        lay.setContentsMargins(12, 0, 12, 0)
+        lay.setContentsMargins(18, 0, 18, 0)
         self._status_lbl = QLabel('就绪')
         self._status_lbl.setObjectName('lbl_status_ok')
         self._hotkey_lbl = QLabel('全局热键: 未知')
-        self._hotkey_lbl.setStyleSheet('color:#9c7b8c;')
+        self._hotkey_lbl.setStyleSheet('color: rgba(140, 110, 125, 0.6); font-size: 11px;')
         self._file_lbl = QLabel('')
-        self._file_lbl.setStyleSheet('color:#9c7b8c;')
+        self._file_lbl.setStyleSheet('color: rgba(140, 110, 125, 0.6); font-size: 11px;')
         lay.addWidget(self._status_lbl)
         lay.addStretch()
         lay.addWidget(self._file_lbl)

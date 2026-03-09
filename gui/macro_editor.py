@@ -140,7 +140,7 @@ class ActionDialog(QDialog):
             self._w_key.setText(self._val_key)
             self.form_layout.addRow('按键组合:', self._w_key)
             hint = QLabel('示例: ctrl+c、f5、alt+F4、enter')
-            hint.setStyleSheet('color:#9c7b8c;font-size:11px;')
+            hint.setStyleSheet('color:rgba(140,110,125,0.6);font-size:11px;')
             self.form_layout.addRow('', hint)
         elif t == 'delay':
             self._w_ms = QSpinBox(); self._w_ms.setRange(1, 60000)
@@ -152,11 +152,11 @@ class ActionDialog(QDialog):
             self._w_count.setValue(self._val_count)
             self.form_layout.addRow('循环次数:', self._w_count)
             hint = QLabel('-1 = 无限循环，直到手动停止')
-            hint.setStyleSheet('color:#9c7b8c;font-size:11px;')
+            hint.setStyleSheet('color:rgba(140,110,125,0.6);font-size:11px;')
             self.form_layout.addRow('', hint)
         elif t == 'loop_end':
             lbl = QLabel('无参数 — 配合"开始循环"使用')
-            lbl.setStyleSheet('color:#9c7b8c;')
+            lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
             self.form_layout.addRow(lbl)
 
     def _pick_point(self):
@@ -235,7 +235,7 @@ class MacroEditorPanel(QWidget):
         self._delay_max.valueChanged.connect(self._on_delay_changed)
         delay_row.addWidget(self._delay_max)
         delay_hint = QLabel('拟真')
-        delay_hint.setStyleSheet('color:#9c7b8c;font-size:11px;')
+        delay_hint.setStyleSheet('color:rgba(140,110,125,0.6);font-size:11px;')
         delay_row.addWidget(delay_hint)
         delay_row.addStretch()
         root.addLayout(delay_row)

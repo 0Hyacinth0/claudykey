@@ -60,7 +60,7 @@ class TriggerEditorPanel(QWidget):
         reg_grp = QGroupBox('检测区域')
         reg_layout = QHBoxLayout(reg_grp)
         self.region_lbl = QLabel('未设置')
-        self.region_lbl.setStyleSheet('color:#9c7b8c;')
+        self.region_lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
         btn_sel = QPushButton('🔲  框选区域')
         btn_sel.setObjectName('btn_accent')
         btn_sel.clicked.connect(self._select_region)
@@ -74,7 +74,7 @@ class TriggerEditorPanel(QWidget):
 
         tmpl_row = QHBoxLayout()
         self.tmpl_lbl = QLabel('无模板')
-        self.tmpl_lbl.setStyleSheet('color:#9c7b8c;')
+        self.tmpl_lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
         btn_capture = QPushButton('📷  截取模板')
         btn_capture.setObjectName('btn_accent')
         btn_capture.clicked.connect(self._capture_template)
@@ -210,7 +210,7 @@ class TriggerEditorPanel(QWidget):
     def _update_region_label(self, region):
         x, y, w, h = region
         self.region_lbl.setText(f'({x}, {y})  {w} × {h} px')
-        self.region_lbl.setStyleSheet('color:#d15c89;font-weight:bold;')
+        self.region_lbl.setStyleSheet('color:#c94080;font-weight:bold;')
 
     def _update_template_preview(self, path: str):
         if path and os.path.exists(path):
