@@ -5,11 +5,21 @@ from typing import Optional, Tuple
 
 
 def load_template(path: str) -> np.ndarray:
-    """Load a template image as BGR numpy array."""
-    img = cv2.imread(path)
-    if img is None:
-        raise FileNotFoundError(f"Cannot load template image: {path}")
-    return img
+    """Load a template image as BGR numpy array.
+    Uses PIL to avoid OpenCV libpng ICC profile stderr warnings.
+    """
+    try:
+        from PIL import Image
+        with Image.open(path) as pil_img:
+            # Convert to RGB to discard alpha or handle grayscale, then to BGR
+            img = np.array(pil_img.convert('RGB'))[:, :, ::-1].copy()
+            return img
+    except Exception:
+        # Fallback to OpenCV
+        img = cv2.imread(path)
+        if img is None:
+            raise FileNotFoundError(f"Cannot load template image: {path}")
+        return img
 
 
 def find_template(

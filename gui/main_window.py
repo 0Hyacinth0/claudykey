@@ -328,13 +328,20 @@ class MainWindow(QMainWindow):
     #  Sidebar list management
     # ══════════════════════════════════════════════════════════════
     def _refresh_macro_list(self):
+        old_row = self.macro_list.currentRow()
+        self.macro_list.blockSignals(True)
         self.macro_list.clear()
         for m in self.project.macros:
             item = QListWidgetItem(f'⚡ {m.name}')
             item.setData(Qt.ItemDataRole.UserRole, m.id)
             self.macro_list.addItem(item)
+        if 0 <= old_row < self.macro_list.count():
+            self.macro_list.setCurrentRow(old_row)
+        self.macro_list.blockSignals(False)
 
     def _refresh_trigger_list(self):
+        old_row = self.trigger_list.currentRow()
+        self.trigger_list.blockSignals(True)
         self.trigger_list.clear()
         for t in self.project.triggers:
             icon = '🖼' if t.type == 'image' else '📝'
@@ -342,6 +349,9 @@ class MainWindow(QMainWindow):
             item = QListWidgetItem(f'{prefix}{icon} {t.name}')
             item.setData(Qt.ItemDataRole.UserRole, t.id)
             self.trigger_list.addItem(item)
+        if 0 <= old_row < self.trigger_list.count():
+            self.trigger_list.setCurrentRow(old_row)
+        self.trigger_list.blockSignals(False)
 
     def _on_macro_selected(self, row: int):
         if row < 0 or row >= len(self.project.macros):

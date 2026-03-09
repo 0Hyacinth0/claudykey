@@ -281,11 +281,13 @@ class MacroEditorPanel(QWidget):
 
     # ------------------------------------------------------------------ data
     def load_sequence(self, seq: MacroSequence):
+        self._building = True
         self.sequence = seq
         self.name_edit.setText(seq.name)
         self._delay_min.setValue(seq.random_delay_min_ms)
         self._delay_max.setValue(seq.random_delay_max_ms)
         self._refresh_list()
+        self._building = False
 
     def _refresh_list(self):
         self.list.clear()
@@ -310,6 +312,8 @@ class MacroEditorPanel(QWidget):
         return '    ' * depth
 
     def _on_delay_changed(self):
+        if getattr(self, '_building', False):
+            return
         if self.sequence:
             self.sequence.random_delay_min_ms = self._delay_min.value()
             self.sequence.random_delay_max_ms = self._delay_max.value()
