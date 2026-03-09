@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSplitter,
     QListWidget, QListWidgetItem, QPushButton, QLabel, QFrame,
     QStackedWidget, QFileDialog, QMessageBox, QSizePolicy,
-    QInputDialog, QComboBox, QDialog,
+    QInputDialog, QComboBox, QDialog, QTextBrowser,
 )
 from pynput import keyboard as pynput_kb
 from pynput import mouse as pynput_mouse
@@ -77,6 +77,7 @@ class _Bridge(QObject):
     macro_done = pyqtSignal()
     macro_error = pyqtSignal(str)
     trigger_fired = pyqtSignal(str)   # trigger id
+    log_msg = pyqtSignal(str)
 
 
 class MainWindow(QMainWindow):
@@ -103,6 +104,7 @@ class MainWindow(QMainWindow):
         self._bridge.macro_done.connect(self._on_macro_done)
         self._bridge.macro_error.connect(self._on_macro_error)
         self._bridge.trigger_fired.connect(self._on_trigger_fired)
+        self._bridge.log_msg.connect(self._append_log)
 
         self._build_ui()
         self._register_hotkey()
@@ -282,6 +284,9 @@ class MainWindow(QMainWindow):
         return side
 
     def _build_editor_area(self) -> QWidget:
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        
+        # Top: Stacked editor
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.setContentsMargins(16, 14, 16, 14)
@@ -304,7 +309,32 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.trigger_editor)
 
         lay.addWidget(self.stack)
-        return w
+        splitter.addWidget(w)
+        
+        # Bottom: Log viewer
+        log_w = QWidget()
+        log_lay = QVBoxLayout(log_w)
+        log_lay.setContentsMargins(16, 0, 16, 14)
+        log_lbl = QLabel('运行日志')
+        log_lbl.setStyleSheet('color: #8c6e7d; font-size: 11px; font-weight: bold;')
+        self.log_view = QTextBrowser()
+        self.log_view.setReadOnly(True)
+        self.log_view.setStyleSheet("font-family: Consolas, monospace; font-size: 12px; background: rgba(250, 248, 249, 0.4); color: #503d46; border: 1px solid #e0d0da; border-radius: 8px;")
+        
+        # Clear log button
+        log_hdr = QHBoxLayout()
+        log_hdr.addWidget(log_lbl, 1)
+        btn_clr_log = QPushButton('清除日志')
+        btn_clr_log.setStyleSheet('color: #a0889a; border: none; font-size: 10px;')
+        btn_clr_log.clicked.connect(self.log_view.clear)
+        log_hdr.addWidget(btn_clr_log)
+        
+        log_lay.addLayout(log_hdr)
+        log_lay.addWidget(self.log_view)
+        splitter.addWidget(log_w)
+        
+        splitter.setSizes([700, 200])
+        return splitter
 
     def _build_statusbar(self) -> QFrame:
         bar = QFrame()
@@ -504,7 +534,8 @@ class MainWindow(QMainWindow):
             enabled = [t for t in self.project.triggers if t.enabled]
             if enabled:
                 self._trigger_engine = TriggerEngine(
-                    enabled, self._on_trigger_fired_bg)
+                    enabled, self._on_trigger_fired_bg,
+                    on_log=self._bridge.log_msg.emit)
                 self._trigger_engine.start()
             else:
                 self._set_status('条件模式下没有启用的触发器', 'err')
@@ -543,6 +574,7 @@ class MainWindow(QMainWindow):
             on_step=lambda i: self._bridge.step_changed.emit(i),
             on_done=done_handler,
             on_error=err_handler,
+            on_log=self._bridge.log_msg.emit,
         )
         self._executor.start()
 
