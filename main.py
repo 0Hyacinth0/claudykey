@@ -7,7 +7,7 @@ import threading
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from PyQt6.QtWidgets import QApplication, QSplashScreen, QLabel
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, qInstallMessageHandler, QtMsgType
 from PyQt6.QtGui import QFont
 
 from gui.theme import THEME_QSS
@@ -22,11 +22,19 @@ def _warm_up_ocr():
         pass
 
 
+def _qt_message_handler(mode, context, message):
+    if "iCCP" in message or "incorrect sRGB profile" in message:
+        return
+    import sys
+    sys.stderr.write(f"{message}\n")
+
 def main():
     # Qt6 handles high-DPI natively, no manual ctypes call needed
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 
     app = QApplication(sys.argv)
+    qInstallMessageHandler(_qt_message_handler)
+
     app.setApplicationName('ClaudyKey')
     app.setApplicationDisplayName('ClaudyKey')
     app.setStyle('Fusion')
