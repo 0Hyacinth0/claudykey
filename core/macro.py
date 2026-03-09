@@ -88,7 +88,9 @@ class TriggerConfig:
     threshold: float = 0.80
     # Text trigger
     target_text: str = ''
-    match_mode: str = 'contains'  # 'contains' | 'exact' | 'regex'
+    match_mode: str = 'contains'  # 'contains' | 'exact' | 'regex' | 'number'
+    number_cmp: str = 'lte'       # 'lte' | 'gte' | 'eq'
+    number_val: float = 0.0
     # On-trigger action
     action_type: str = 'run_macro'   # 'run_macro' | 'click' | 'key'
     action_params: Dict[str, Any] = field(default_factory=dict)
@@ -101,6 +103,7 @@ class TriggerConfig:
             'type': self.type, 'region': list(self.region),
             'template_path': self.template_path, 'threshold': self.threshold,
             'target_text': self.target_text, 'match_mode': self.match_mode,
+            'number_cmp': self.number_cmp, 'number_val': self.number_val,
             'action_type': self.action_type, 'action_params': self.action_params,
             'check_interval_ms': self.check_interval_ms, 'cooldown_ms': self.cooldown_ms,
         }
@@ -109,7 +112,8 @@ class TriggerConfig:
     def from_dict(d: dict) -> 'TriggerConfig':
         t = TriggerConfig(id=d['id'], name=d['name'])
         for k in ('enabled', 'type', 'template_path', 'threshold',
-                  'target_text', 'match_mode', 'action_type', 'action_params',
+                  'target_text', 'match_mode', 'number_cmp', 'number_val',
+                  'action_type', 'action_params',
                   'check_interval_ms', 'cooldown_ms'):
             if k in d:
                 setattr(t, k, d[k])
@@ -122,12 +126,14 @@ class MacroProject:
         self.macros: List[MacroSequence] = []
         self.triggers: List[TriggerConfig] = []
         self.hotkey: str = '<f9>'
+        self.mode: str = 'loop'  # 'loop' | 'conditional'
 
     def to_dict(self) -> dict:
         return {
             'macros': [m.to_dict() for m in self.macros],
             'triggers': [t.to_dict() for t in self.triggers],
             'hotkey': self.hotkey,
+            'mode': self.mode,
         }
 
     @staticmethod
@@ -136,6 +142,7 @@ class MacroProject:
         p.macros = [MacroSequence.from_dict(m) for m in d.get('macros', [])]
         p.triggers = [TriggerConfig.from_dict(t) for t in d.get('triggers', [])]
         p.hotkey = d.get('hotkey', '<f9>')
+        p.mode = d.get('mode', 'loop')
         return p
 
     def save(self, path: str):

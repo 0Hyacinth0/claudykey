@@ -16,7 +16,7 @@ class TriggerEngine(threading.Thread):
     def __init__(
         self,
         triggers: List[TriggerConfig],
-        on_fire: Callable[[TriggerConfig], None],
+        on_fire: Callable[[TriggerConfig], Optional[threading.Event]],
     ):
         super().__init__(daemon=True, name='TriggerEngine')
         self.triggers = list(triggers)
@@ -60,6 +60,17 @@ class TriggerEngine(threading.Thread):
                 return tgt in text
             elif t.match_mode == 'regex':
                 return bool(re.search(tgt, text))
+            elif t.match_mode == 'number':
+                nums = re.findall(r'-?\d+\.?\d*', text)
+                if not nums:
+                    return False
+                val = float(nums[0])
+                if t.number_cmp == 'lte':
+                    return val <= t.number_val
+                elif t.number_cmp == 'gte':
+                    return val >= t.number_val
+                elif t.number_cmp == 'eq':
+                    return abs(val - t.number_val) < 1e-6
         return False
 
     def invalidate_template_cache(self):
@@ -68,15 +79,28 @@ class TriggerEngine(threading.Thread):
     def run(self):
         while not self._stop.is_set():
             now = time.monotonic()
+            fired_event = None
+            
             for t in self.triggers:
+                if self._stop.is_set():
+                    break
                 if not t.enabled:
                     continue
                 if now < self._cooldown_until.get(t.id, 0):
                     continue
                 try:
                     if self._check(t):
-                        self._cooldown_until[t.id] = now + t.cooldown_ms / 1000.0
-                        self.on_fire(t)
+                        self._cooldown_until[t.id] = time.monotonic() + t.cooldown_ms / 1000.0
+                        fired_event = self.on_fire(t)
+                        if fired_event:
+                            break  # Stop checking other conditions while this one runs
                 except Exception:
                     pass
-            self._stop.wait(0.1)
+            
+            if fired_event:
+                # Wait for the macro to finish before starting the next poll
+                while not fired_event.is_set() and not self._stop.is_set():
+                    self._stop.wait(0.1)
+                # Once it finishes, the loop restarts from the very first trigger (sequential polling)
+            else:
+                self._stop.wait(0.1)

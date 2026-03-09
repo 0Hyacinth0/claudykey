@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QPixmap
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
-    QLineEdit, QCheckBox, QComboBox, QSlider, QSpinBox,
+    QLineEdit, QCheckBox, QComboBox, QSlider, QSpinBox, QDoubleSpinBox,
     QPushButton, QFrame, QFileDialog, QGroupBox,
 )
 
@@ -114,10 +114,36 @@ class TriggerEditorPanel(QWidget):
         self.match_combo.addItem('包含', 'contains')
         self.match_combo.addItem('精确匹配', 'exact')
         self.match_combo.addItem('正则表达式', 'regex')
+        self.match_combo.addItem('数值比较', 'number')
         self.match_combo.currentIndexChanged.connect(
             lambda: self._set('match_mode', self.match_combo.currentData()))
+        
+        # ── Number Comparison Config ──
+        self.num_cmp_row = QHBoxLayout()
+        self.num_cmp_combo = QComboBox()
+        self.num_cmp_combo.addItem('≤ 小于等于', 'lte')
+        self.num_cmp_combo.addItem('≥ 大于等于', 'gte')
+        self.num_cmp_combo.addItem('= 等于', 'eq')
+        self.num_cmp_combo.currentIndexChanged.connect(
+            lambda: self._set('number_cmp', self.num_cmp_combo.currentData()))
+        
+        self.num_val_spin = QDoubleSpinBox()
+        self.num_val_spin.setRange(-99999999.0, 99999999.0)
+        self.num_val_spin.setDecimals(2)
+        self.num_val_spin.valueChanged.connect(
+            lambda v: self._set('number_val', v))
+            
+        self.num_cmp_row.addWidget(self.num_cmp_combo)
+        self.num_cmp_row.addWidget(self.num_val_spin)
+        
         txt_layout.addRow('目标文字:', self.txt_edit)
         txt_layout.addRow('匹配方式:', self.match_combo)
+        self.txt_layout_label_target = txt_layout.labelForField(self.txt_edit)
+        txt_layout.addRow('数值条件:', self.num_cmp_row)
+        self.txt_layout_label_num = txt_layout.labelForField(self.num_cmp_row)
+        
+        self.match_combo.currentIndexChanged.connect(self._on_match_mode_changed)
+        
         root.addWidget(self.txt_grp)
 
         # ── Action on trigger ──
@@ -178,6 +204,11 @@ class TriggerEditorPanel(QWidget):
         self.txt_edit.setText(trigger.target_text)
         idx_m = self.match_combo.findData(trigger.match_mode)
         self.match_combo.setCurrentIndex(max(0, idx_m))
+        
+        idx_c = self.num_cmp_combo.findData(getattr(trigger, 'number_cmp', 'lte'))
+        self.num_cmp_combo.setCurrentIndex(max(0, idx_c))
+        self.num_val_spin.setValue(getattr(trigger, 'number_val', 0.0))
+        
         # Template
         self._update_template_preview(trigger.template_path)
         # Macro combos
@@ -228,6 +259,19 @@ class TriggerEditorPanel(QWidget):
         self.txt_grp.setVisible(t == 'text')
         if not self._building:
             self._set('type', t)
+            
+    def _on_match_mode_changed(self):
+        m = self.match_combo.currentData()
+        is_num = (m == 'number')
+        self.txt_edit.setVisible(not is_num)
+        if hasattr(self, 'txt_layout_label_target') and self.txt_layout_label_target:
+            self.txt_layout_label_target.setVisible(not is_num)
+            
+        for i in range(self.num_cmp_row.count()):
+            w = self.num_cmp_row.itemAt(i).widget()
+            if w: w.setVisible(is_num)
+        if hasattr(self, 'txt_layout_label_num') and self.txt_layout_label_num:
+            self.txt_layout_label_num.setVisible(is_num)
 
     def _on_threshold_changed(self, v: int):
         val = v / 100.0

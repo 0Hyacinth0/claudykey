@@ -145,6 +145,32 @@ class MainWindow(QMainWindow):
         lay.addWidget(logo)
         lay.addSpacing(24)
 
+        # ── Mode Selector ──
+        mode_lay = QHBoxLayout()
+        mode_lay.setSpacing(0)
+        self._btn_mode_loop = QPushButton('🔁 循环模式')
+        self._btn_mode_cond = QPushButton('🔍 条件模式')
+        self._btn_mode_loop.setCheckable(True)
+        self._btn_mode_cond.setCheckable(True)
+        
+        # Style them like a toggle group
+        self._btn_mode_loop.setStyleSheet('''
+            QPushButton { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; }
+            QPushButton:checked { background: rgba(251,191,213,0.85); color: white; border-color: rgba(255,255,255,0.6); }
+        ''')
+        self._btn_mode_cond.setStyleSheet('''
+            QPushButton { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+            QPushButton:checked { background: rgba(251,191,213,0.85); color: white; border-color: rgba(255,255,255,0.6); }
+        ''')
+        
+        self._btn_mode_loop.clicked.connect(lambda: self._set_mode('loop'))
+        self._btn_mode_cond.clicked.connect(lambda: self._set_mode('conditional'))
+        
+        mode_lay.addWidget(self._btn_mode_loop)
+        mode_lay.addWidget(self._btn_mode_cond)
+        lay.addLayout(mode_lay)
+        lay.addSpacing(24)
+
         # ── Control group ──
         self._btn_run = QPushButton('▶  运行')
         self._btn_run.setObjectName('btn_run')
@@ -157,7 +183,7 @@ class MainWindow(QMainWindow):
 
         lay.addWidget(self._btn_run)
         lay.addWidget(self._btn_stop)
-        lay.addSpacing(12)
+        lay.addSpacing(16)
 
         # ── Hotkey ──
         hk_lbl = QLabel('⚡ 快捷键')
@@ -410,9 +436,28 @@ class MainWindow(QMainWindow):
             self.stack.setCurrentIndex(0)
             self._file_lbl.setText(os.path.basename(path))
             self._register_hotkey()
+            self._update_ui_for_mode()
             self._set_status('项目已加载', 'ok')
         except Exception as e:
             QMessageBox.critical(self, '加载失败', str(e))
+
+    def _set_mode(self, mode: str):
+        if self._running:
+            return
+        self.project.mode = mode
+        self._update_ui_for_mode()
+        self._on_project_changed()
+
+    def _update_ui_for_mode(self):
+        m = self.project.mode
+        self._btn_mode_loop.setChecked(m == 'loop')
+        self._btn_mode_cond.setChecked(m == 'conditional')
+        if m == 'loop':
+            self._btn_run.setText('▶  开始循环')
+            self._btn_stop.setText('■  停止循环')
+        else:
+            self._btn_run.setText('🔍  开始巡检')
+            self._btn_stop.setText('■  停止巡检')
 
     # ══════════════════════════════════════════════════════════════
     #  Run / Stop
@@ -428,37 +473,49 @@ class MainWindow(QMainWindow):
         self._btn_stop.setEnabled(True)
         self._set_status('运行中…', 'run')
 
-        # Start trigger engine (if any enabled triggers)
-        enabled = [t for t in self.project.triggers if t.enabled]
-        if enabled:
-            self._trigger_engine = TriggerEngine(
-                enabled, self._on_trigger_fired_bg)
-            self._trigger_engine.start()
+        if self.project.mode == 'conditional':
+            enabled = [t for t in self.project.triggers if t.enabled]
+            if enabled:
+                self._trigger_engine = TriggerEngine(
+                    enabled, self._on_trigger_fired_bg)
+                self._trigger_engine.start()
+            else:
+                self._set_status('条件模式下没有启用的触发器', 'err')
+                self._stop_all()
+        else:
+            # Loop mode: run exactly the chosen macro
+            seq = None
+            row = self.macro_list.currentRow()
+            if 0 <= row < len(self.project.macros):
+                seq = self.project.macros[row]
+            elif getattr(self.macro_editor, 'sequence', None) and self.macro_editor.sequence in self.project.macros:
+                seq = self.macro_editor.sequence
+            elif self.project.macros:
+                seq = self.project.macros[0]
+                
+            if seq:
+                self._run_macro(seq)
+            else:
+                self._set_status('没有要运行的宏', 'err')
+                self._stop_all()
 
-        # Run the currently viewed or selected macro
-        seq = None
-        row = self.macro_list.currentRow()
-        if 0 <= row < len(self.project.macros):
-            seq = self.project.macros[row]
-        elif getattr(self.macro_editor, 'sequence', None) and self.macro_editor.sequence in self.project.macros:
-            seq = self.macro_editor.sequence
-        elif self.project.macros:
-            seq = self.project.macros[0]
-            
-        if seq:
-            self._run_macro(seq)
-        elif not enabled:
-            self._set_status('没有要运行的宏或触发器', 'err')
-            self._stop_all()
-
-    def _run_macro(self, seq):
+    def _run_macro(self, seq, on_done_extra=None):
         if self._executor and self._executor.is_alive():
             self._executor.stop()
+        
+        def done_handler():
+            self._bridge.macro_done.emit()
+            if on_done_extra: on_done_extra()
+            
+        def err_handler(e):
+            self._bridge.macro_error.emit(e)
+            if on_done_extra: on_done_extra()
+
         self._executor = MacroExecutor(
             seq,
             on_step=lambda i: self._bridge.step_changed.emit(i),
-            on_done=lambda: self._bridge.macro_done.emit(),
-            on_error=lambda e: self._bridge.macro_error.emit(e),
+            on_done=done_handler,
+            on_error=err_handler,
         )
         self._executor.start()
 
@@ -496,8 +553,7 @@ class MainWindow(QMainWindow):
     def _on_trigger_fired_bg(self, trigger: TriggerConfig):
         """Called from TriggerEngine thread."""
         self._bridge.trigger_fired.emit(trigger.id)
-        # Execute the action on this thread (non-GUI)
-        self._execute_trigger_action(trigger)
+        return self._execute_trigger_action(trigger)
 
     def _on_trigger_fired(self, tid: str):
         """Called on GUI thread via bridge."""
@@ -505,13 +561,16 @@ class MainWindow(QMainWindow):
         if trig:
             self._set_status(f'触发: {trig.name}', 'run')
 
-    def _execute_trigger_action(self, trigger: TriggerConfig):
+    def _execute_trigger_action(self, trigger: TriggerConfig) -> threading.Event:
         """Execute the trigger's configured action (called from background thread)."""
+        done_event = threading.Event()
         if trigger.action_type == 'run_macro':
             mid = trigger.action_params.get('macro_id', '')
             seq = next((m for m in self.project.macros if m.id == mid), None)
             if seq:
-                self._run_macro(seq)
+                self._run_macro(seq, on_done_extra=done_event.set)
+            else:
+                done_event.set()
         elif trigger.action_type == 'click':
             from pynput.mouse import Controller as MC, Button
             mc = MC()
@@ -519,18 +578,22 @@ class MainWindow(QMainWindow):
             y = trigger.action_params.get('y', 0)
             mc.position = (x, y)
             mc.click(Button.left)
+            done_event.set()
         elif trigger.action_type == 'key':
             from pynput.keyboard import Controller as KC
             from core.executor import _KEY_MAP
             kc = KC()
             keys = [_KEY_MAP.get(k.strip().lower(), k.strip())
                     for k in trigger.action_params.get('key', '').split('+')]
-            for k in keys[:-1]:
-                kc.press(k)
-            kc.press(keys[-1])
-            kc.release(keys[-1])
-            for k in reversed(keys[:-1]):
-                kc.release(k)
+            if keys:
+                for k in keys[:-1]:
+                    kc.press(k)
+                kc.press(keys[-1])
+                kc.release(keys[-1])
+                for k in reversed(keys[:-1]):
+                    kc.release(k)
+            done_event.set()
+        return done_event
 
     # ══════════════════════════════════════════════════════════════
     #  Status bar
