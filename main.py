@@ -37,17 +37,17 @@ def main():
     splash.setFixedSize(420, 200)
     splash.setStyleSheet("""
         background: qlineargradient(x1:0,y1:0,x2:1,y2:1,
-            stop:0 #0d0d2a, stop:1 #0a0a1f);
-        border: 1px solid #2a2a6a;
+            stop:0 #fff0f5, stop:1 #ffe6ee);
+        border: 1px solid #f2c2d6;
         border-radius: 10px;
     """)
     splash_lbl = QLabel(splash)
     splash_lbl.setGeometry(0, 0, 420, 200)
     splash_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
     splash_lbl.setText(
-        '<span style="color:#7070ff;font-size:32px;font-weight:bold;">'
+        '<span style="color:#d15c89;font-size:32px;font-weight:bold;">'
         '⌨ ClaudyKey</span><br>'
-        '<span style="color:#404080;font-size:13px;">AI 智能连点器  正在启动…</span>'
+        '<br><span style="color:#9c7b8c;font-size:13px;">AI 智能连点器  正在启动…</span>'
     )
     splash_lbl.setTextFormat(Qt.TextFormat.RichText)
     splash.show()

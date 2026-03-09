@@ -63,7 +63,7 @@ QPushButton:pressed {
     padding-bottom: 5px;
 }
 QPushButton:disabled {
-    color: #a89f102;
+    color: #a891a2;
     background-color: rgba(250, 245, 248, 0.5);
     border-color: rgba(230, 220, 225, 0.5);
 }
