@@ -60,7 +60,7 @@ class TriggerEditorPanel(QWidget):
         reg_grp = QGroupBox('检测区域')
         reg_layout = QHBoxLayout(reg_grp)
         self.region_lbl = QLabel('未设置')
-        self.region_lbl.setStyleSheet('color:#5050a0;')
+        self.region_lbl.setStyleSheet('color:#9c7b8c;')
         btn_sel = QPushButton('🔲  框选区域')
         btn_sel.setObjectName('btn_accent')
         btn_sel.clicked.connect(self._select_region)
@@ -74,7 +74,7 @@ class TriggerEditorPanel(QWidget):
 
         tmpl_row = QHBoxLayout()
         self.tmpl_lbl = QLabel('无模板')
-        self.tmpl_lbl.setStyleSheet('color:#5050a0;')
+        self.tmpl_lbl.setStyleSheet('color:#9c7b8c;')
         btn_capture = QPushButton('📷  截取模板')
         btn_capture.setObjectName('btn_accent')
         btn_capture.clicked.connect(self._capture_template)
@@ -83,7 +83,7 @@ class TriggerEditorPanel(QWidget):
         self.tmpl_preview = QLabel()
         self.tmpl_preview.setFixedSize(80, 50)
         self.tmpl_preview.setStyleSheet(
-            'border:1px solid #2a2a55;border-radius:4px;background:#0a0a1a;')
+            'border:1px solid #f2c2d6;border-radius:4px;background:rgba(255, 255, 255, 0.7);')
         self.tmpl_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tmpl_row.addWidget(self.tmpl_lbl, 1)
         tmpl_row.addWidget(btn_capture)
@@ -210,7 +210,7 @@ class TriggerEditorPanel(QWidget):
     def _update_region_label(self, region):
         x, y, w, h = region
         self.region_lbl.setText(f'({x}, {y})  {w} × {h} px')
-        self.region_lbl.setStyleSheet('color:#7070ff;')
+        self.region_lbl.setStyleSheet('color:#d15c89;font-weight:bold;')
 
     def _update_template_preview(self, path: str):
         if path and os.path.exists(path):

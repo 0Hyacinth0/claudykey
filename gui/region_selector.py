@@ -46,19 +46,19 @@ class RegionSelector(QWidget):
         # Background screenshot
         painter.drawPixmap(0, 0, self._bg)
         # Dark overlay
-        painter.fillRect(self.rect(), QColor(0, 0, 20, 140))
+        painter.fillRect(self.rect(), QColor(255, 240, 248, 120))
 
         if self._start and self._end:
             rect = QRect(self._start, self._end).normalized()
             # Clear overlay inside selection
-            painter.fillRect(rect, QColor(255, 255, 255, 15))
+            painter.fillRect(rect, QColor(255, 255, 255, 30))
             # Selection border
-            pen = QPen(QColor(80, 140, 255), 2)
+            pen = QPen(QColor(209, 92, 137), 2)
             pen.setStyle(Qt.PenStyle.DashLine)
             painter.setPen(pen)
             painter.drawRect(rect)
             # Corner handles
-            painter.setPen(QPen(QColor(120, 180, 255), 2))
+            painter.setPen(QPen(QColor(224, 116, 160), 2))
             cs = 8
             for cx, cy in [
                 (rect.left(), rect.top()), (rect.right(), rect.top()),
@@ -69,15 +69,15 @@ class RegionSelector(QWidget):
             # Coordinate label
             lbl = f" ({rect.x()}, {rect.y()})  {rect.width()} × {rect.height()} "
             painter.setFont(QFont("Consolas", 10, QFont.Weight.Bold))
-            painter.setPen(QColor(200, 220, 255))
+            painter.setPen(QColor(99, 75, 88))
             painter.fillRect(rect.x(), rect.y() - 22, len(lbl) * 7, 20,
-                             QColor(10, 10, 40, 200))
+                             QColor(255, 255, 255, 220))
             painter.drawText(rect.x() + 3, rect.y() - 6, lbl)
 
         # Instruction hint
         hint_font = QFont("Microsoft YaHei UI", 13)
         painter.setFont(hint_font)
-        painter.setPen(QColor(200, 210, 255, 200))
+        painter.setPen(QColor(209, 92, 137, 220))
         painter.drawText(self.width() // 2 - 160, 40,
                          "拖动鼠标选择区域   |   ESC 取消")
 
@@ -143,10 +143,10 @@ class PointSelector(QWidget):
     def paintEvent(self, _):
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._bg)
-        painter.fillRect(self.rect(), QColor(0, 0, 20, 100))
+        painter.fillRect(self.rect(), QColor(255, 240, 248, 120))
         # Crosshair
         p = self._cursor_pos
-        pen = QPen(QColor(80, 200, 255), 1)
+        pen = QPen(QColor(209, 92, 137), 1)
         painter.setPen(pen)
         painter.drawLine(p.x(), 0, p.x(), self.height())
         painter.drawLine(0, p.y(), self.width(), p.y())
@@ -154,12 +154,12 @@ class PointSelector(QWidget):
         lbl = f" ({p.x()}, {p.y()}) "
         painter.setFont(QFont("Consolas", 11, QFont.Weight.Bold))
         painter.fillRect(p.x() + 10, p.y() - 24, len(lbl) * 8, 20,
-                         QColor(10, 10, 40, 210))
-        painter.setPen(QColor(200, 230, 255))
+                         QColor(255, 255, 255, 220))
+        painter.setPen(QColor(99, 75, 88))
         painter.drawText(p.x() + 12, p.y() - 8, lbl)
         # Hint
         painter.setFont(QFont("Microsoft YaHei UI", 13))
-        painter.setPen(QColor(200, 210, 255, 200))
+        painter.setPen(QColor(209, 92, 137, 220))
         painter.drawText(self.width() // 2 - 160, 40,
                          "点击选择坐标   |   ESC 取消")
 

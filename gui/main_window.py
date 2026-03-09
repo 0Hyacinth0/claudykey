@@ -87,7 +87,7 @@ class MainWindow(QMainWindow):
         # Logo
         logo = QLabel('⌨ ClaudyKey')
         logo.setFont(QFont('Segoe UI', 14, QFont.Weight.Bold))
-        logo.setStyleSheet('color:#7070ff;')
+        logo.setStyleSheet('color:#d15c89;')
         lay.addWidget(logo)
         lay.addSpacing(20)
 
@@ -120,8 +120,8 @@ class MainWindow(QMainWindow):
 
     def _build_body(self) -> QSplitter:
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        splitter.setHandleWidth(2)
-        splitter.setStyleSheet('QSplitter::handle{background:#1a1a40;}')
+        splitter.setHandleWidth(4)
+        splitter.setStyleSheet('QSplitter::handle{background:rgba(240, 215, 225, 0.6); border-radius: 2px;}')
         splitter.addWidget(self._build_sidebar())
         splitter.addWidget(self._build_editor_area())
         splitter.setSizes([240, 860])
@@ -194,7 +194,7 @@ class MainWindow(QMainWindow):
         # Page 0: placeholder
         placeholder = QLabel('← 从左侧选择宏或触发器')
         placeholder.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        placeholder.setStyleSheet('color:#333366;font-size:16px;')
+        placeholder.setStyleSheet('color:#ab6a84;font-size:16px;font-weight:bold;')
         self.stack.addWidget(placeholder)
 
         # Page 1: macro editor
@@ -219,9 +219,9 @@ class MainWindow(QMainWindow):
         self._status_lbl = QLabel('就绪')
         self._status_lbl.setObjectName('lbl_status_ok')
         self._hotkey_lbl = QLabel('全局热键: F9 开始 / 停止')
-        self._hotkey_lbl.setStyleSheet('color:#333366;')
+        self._hotkey_lbl.setStyleSheet('color:#9c7b8c;')
         self._file_lbl = QLabel('')
-        self._file_lbl.setStyleSheet('color:#333366;')
+        self._file_lbl.setStyleSheet('color:#9c7b8c;')
         lay.addWidget(self._status_lbl)
         lay.addStretch()
         lay.addWidget(self._file_lbl)
@@ -459,9 +459,9 @@ class MainWindow(QMainWindow):
     # ══════════════════════════════════════════════════════════════
     def _set_status(self, msg: str, kind: str = 'ok'):
         styles = {
-            'ok':  'color:#00cc60;',
-            'run': 'color:#ffaa00;',
-            'err': 'color:#ff4444;',
+            'ok':  'color:#1fa357;',
+            'run': 'color:#d6871a;',
+            'err': 'color:#d94141;',
         }
         self._status_lbl.setText(msg)
         self._status_lbl.setStyleSheet(styles.get(kind, ''))
