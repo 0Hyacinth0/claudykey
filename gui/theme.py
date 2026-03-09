@@ -306,7 +306,7 @@ QCheckBox::indicator:hover { border-color: #f4b8cc; }
 QCheckBox::indicator:checked {
     background: #e074a0;
     border-color: #e074a0;
-    image: url(''); /* In pure CSS Qt, we rely on color, ideally a check icon SVG goes here */
+    image: none; /* In pure CSS Qt, we rely on color, ideally a check icon SVG goes here */
 }
 
 /* ══════════════════ Tooltip ══════════════════ */
