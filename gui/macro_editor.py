@@ -273,7 +273,7 @@ class MacroEditorPanel(QWidget):
     @staticmethod
     def _tb_btn(icon: str, tip: str, slot) -> QPushButton:
         b = QPushButton(icon)
-        b.setObjectName('btn_icon_tool')
+        b.setObjectName('btn_icon')
         b.setToolTip(tip)
         b.setFixedWidth(36)
         b.clicked.connect(slot)

@@ -12,7 +12,7 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QTabWidget, QWidget, QFormLayout,
     QLabel, QLineEdit, QPushButton, QHBoxLayout, QFileDialog,
-    QMessageBox, QProgressBar, QComboBox, QFrame
+    QMessageBox, QProgressBar, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -91,223 +91,148 @@ class BackendSettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('输入驱动设置')
-        self.setFixedSize(600, 400)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Dialog)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setMinimumSize(480, 420)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
         self._installer_thread: Optional[DriverInstallerThread] = None
+        self._build_ui()
 
-        # Main background (cyber wave mockup)
-        self.bg = QFrame(self)
-        self.bg.setGeometry(0, 0, 600, 400)
-        self.bg.setStyleSheet("""
-            QFrame#bg {
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #1a1b2d, stop:0.4 #23163a, stop:0.7 #13273e, stop:1 #1a1b2d);
-                border-radius: 12px;
-            }
-        """)
-        self.bg.setObjectName("bg")
+    def _build_ui(self):
+        # Active backend selector
+        top_lay = QHBoxLayout()
+        top_lay.addWidget(QLabel('当前使用驱动:'))
+        self._combo_backend = QComboBox()
+        self._combo_backend.addItem('DD虚拟驱动', 'dd')
+        self._combo_backend.addItem('Interception拦截器', 'int')
         
-        main_lay = QVBoxLayout(self.bg)
-        main_lay.setContentsMargins(40, 40, 40, 40)
-        
-        # Center Card
-        self.card = QFrame()
-        self.card.setStyleSheet("""
-            QFrame#card {
-                background: rgba(255, 255, 255, 0.03);
-                border: 1px solid rgba(0, 242, 254, 0.3);
-                border-top: 1px solid rgba(213, 51, 105, 0.4);
-                border-border-radius: 16px;
-                border-radius: 16px;
-            }
-        """)
-        self.card.setObjectName("card")
-        card_lay = QVBoxLayout(self.card)
-        card_lay.setContentsMargins(20, 20, 20, 20)
-        card_lay.setSpacing(16)
-
-        # Tabs (Pill style)
-        self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: none;
-                background: transparent;
-            }
-            QTabBar::tab {
-                background: rgba(255, 255, 255, 0.08);
-                color: #a1a1aa;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 14px;
-                padding: 6px 20px;
-                margin-right: 12px;
-                font-size: 13px;
-            }
-            QTabBar::tab:selected {
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #7579ff, stop:1 #b224ef);
-                color: white;
-                border: 1px solid rgba(255, 255, 255, 0.4);
-                font-weight: bold;
-            }
-        """)
-        card_lay.addWidget(self.tabs)
-
-        self.tabs.addTab(self._build_dd_tab(), 'DD Virtual Driver')
-        self.tabs.addTab(self._build_interception_tab(), 'Interception')
-        
-        # When tab changes, activate the corresponding backend
-        self.tabs.currentChanged.connect(self._on_tab_changed)
-        
-        # Set active tab based on current backend
         from core import input_backend as _ib
         curr = _ib.get_active_name()
         if curr == 'int':
-            self.tabs.setCurrentIndex(1)
+            self._combo_backend.setCurrentIndex(1)
         else:
-            self.tabs.setCurrentIndex(0)
+            self._combo_backend.setCurrentIndex(0)
+            
+        self._combo_backend.currentIndexChanged.connect(self._on_backend_changed)
+        top_lay.addWidget(self._combo_backend, 1)
+        lay.addLayout(top_lay)
+        lay.addSpacing(4)
 
-        # Close button bottom right
+        self.tabs = QTabWidget()
+        lay.addWidget(self.tabs)
+
+        self.tabs.addTab(self._build_dd_tab(), 'DD虚拟驱动')
+        self.tabs.addTab(self._build_interception_tab(), 'Interception')
+
+        # Link active backend combo to tab index (optional UX improvement)
+        self._combo_backend.currentIndexChanged.connect(self.tabs.setCurrentIndex)
+        self.tabs.currentChanged.connect(self._combo_backend.setCurrentIndex)
+
+        # Close button
         btn_row = QHBoxLayout()
         btn_row.addStretch()
         close_btn = QPushButton('关闭')
-        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background: rgba(255, 255, 255, 0.1);
-                border: 1px solid rgba(255, 255, 255, 0.2);
-                color: #e4e4e7;
-                border-radius: 12px;
-                padding: 6px 20px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background: rgba(255, 255, 255, 0.2);
-            }
-        """)
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
-        card_lay.addLayout(btn_row)
+        lay.addLayout(btn_row)
 
-        main_lay.addWidget(self.card)
-
-    def _on_tab_changed(self, idx: int):
+    def _on_backend_changed(self, idx: int):
         from core import input_backend as _ib
-        if idx == 0:  # DD
+        backend_name = self._combo_backend.itemData(idx)
+        if backend_name == 'dd':
             dd_path = self._dd_path_edit.text().strip()
             try:
                 _ib.set_backend('dd', dll_path=dd_path)
-            except Exception:
+            except Exception as e:
                 pass
-        elif idx == 1:  # Interception
+        elif backend_name == 'int':
             try:
                 _ib.set_backend('int')
-            except Exception:
+            except Exception as e:
                 pass
-
-    # ── common buttons ──────────────────────────────────────────────
-    def _create_install_btn(self, text):
-        btn = QPushButton(text)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #ff758c, stop:1 #ff7eb3);
-                border: none;
-                border-radius: 16px;
-                padding: 10px;
-                color: white;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 #ff8a9f, stop:1 #ff96c2);
-            }
-            QPushButton:disabled {
-                background: #444; color: #888;
-            }
-        """)
-        return btn
-
-    def _create_check_btn(self, text):
-        btn = QPushButton(text)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #f8f9fa, stop:1 #e9ecef);
-                border: 1px solid #ced4da;
-                border-radius: 16px;
-                padding: 10px;
-                color: #212529;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background: #ffffff;
-            }
-        """)
-        return btn
 
     # ── DD tab ──────────────────────────────────────────────────────
     def _build_dd_tab(self) -> QWidget:
-        from core.backends.dd_backend import _get_default_dll_path
+        from core.backends.dd_backend import _get_default_dll_path, _load_dll
         w = QWidget()
         lay = QVBoxLayout(w)
-        lay.setContentsMargins(0, 15, 0, 0)
         lay.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         info = QLabel(
-            '<b>DD Virtual Driver</b> 是内核驱动模拟输入，可绕过游戏反作弊。兼容性广，适合多等国产游戏。<br><br>'
-            '点击下方按钮进行一键安装。'
+            '<b>DD虚拟驱动</b> 通过内核驱动模拟输入，可绕过游戏反作弊。<br>'
+            '适合 <b>剑网3、DNF</b> 等国产游戏。<br><br>'
+            '你可以手动下载并指定 dll，或者使用下方的<b>一键安装</b>。'
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #d4d4d8; font-size: 13px; line-height: 1.5;")
+        info.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(info)
-        lay.addSpacing(20)
+        lay.addSpacing(8)
 
-        self._btn_dd_install = self._create_install_btn('⬇ 一键下载并配置 DD Virtual Driver')
+        # One click install button
+        self._btn_dd_install = QPushButton('⬇️ 一键下载并配置 DD 驱动')
+        self._btn_dd_install.setObjectName('btn_test_macro')
+        self._btn_dd_install.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_dd_install.clicked.connect(self._do_install_dd)
         lay.addWidget(self._btn_dd_install)
-        lay.addSpacing(6)
+        lay.addSpacing(12)
 
-        check_btn = self._create_check_btn('检测 DD Virtual Driver 驱动状态')
+        form = QFormLayout()
+        self._dd_path_edit = QLineEdit()
+        self._dd_path_edit.setPlaceholderText('例: C:\\tools\\dd64.dll')
+        self._dd_path_edit.setText(_get_default_dll_path())
+
+        path_row = QHBoxLayout()
+        path_row.addWidget(self._dd_path_edit)
+        browse_btn = QPushButton('浏览…')
+        browse_btn.setFixedWidth(60)
+        browse_btn.clicked.connect(self._browse_dd_dll)
+        path_row.addWidget(browse_btn)
+
+        form.addRow('DLL 路径:', path_row)
+        lay.addLayout(form)
+
+        check_btn = QPushButton('检测 DD 驱动')
         check_btn.clicked.connect(self._check_dd)
         lay.addWidget(check_btn)
-        
-        # Hidden inputs for DLL path tracking. Kept for internal logic compatibility.
-        self._dd_path_edit = QLineEdit()
-        self._dd_path_edit.setText(_get_default_dll_path())
-        self._dd_path_edit.hide()
 
         self._dd_status = QLabel('')
-        self._dd_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._dd_status.setStyleSheet("margin-top: 10px;")
         lay.addWidget(self._dd_status)
 
         self._check_dd()
         return w
 
+    def _browse_dd_dll(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, '选择 DD 驱动 DLL', '', 'DLL 文件 (*.dll)')
+        if path:
+            self._dd_path_edit.setText(path)
+
     def _check_dd(self):
         from core.backends.dd_backend import _load_dll
         path = self._dd_path_edit.text().strip()
-        if not path or not os.path.isfile(path):
-            self._dd_status.setText('❌ 驱动未就绪或未安装')
-            self._dd_status.setStyleSheet('color: #ef4444; font-size: 13px; font-weight: bold; margin-top: 10px;')
+        if not path:
+            self._dd_status.setText('⚠ 未指定DLL路径')
+            self._dd_status.setStyleSheet('color:#d6871a;')
+            return
+        if not os.path.isfile(path):
+            self._dd_status.setText('❌ 文件不存在')
+            self._dd_status.setStyleSheet('color:#d94141;')
             return
         dll = _load_dll(path)
         if dll:
-            self._dd_status.setText('✅ 驱动已安装且就绪')
-            self._dd_status.setStyleSheet('color: #10b981; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            self._dd_status.setText('✅ 驱动可用')
+            self._dd_status.setStyleSheet('color:#1fa357; font-weight:bold;')
             from core.backends import dd_backend
             dd_backend._dll_path_cache = ''
             from core import input_backend as _ib
             if _ib.get_active_name() == 'dd':
                 _ib.set_backend('dd', dll_path=path)
         else:
-            self._dd_status.setText('❌ 驱动未就绪或未安装')
-            self._dd_status.setStyleSheet('color: #ef4444; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            self._dd_status.setText('❌ DLL加载失败（可能位数不匹配或驱动未安装）')
+            self._dd_status.setStyleSheet('color:#d94141;')
 
     def _do_install_dd(self):
         self._btn_dd_install.setEnabled(False)
         self._dd_status.setText('正在下载...')
-        self._dd_status.setStyleSheet('color: #3b82f6; font-size: 13px; font-weight: bold; margin-top: 10px;')
+        self._dd_status.setStyleSheet('color:#1fa357;')
         
         self._installer_thread = DriverInstallerThread('dd', self)
         self._installer_thread.log.connect(lambda msg: self._dd_status.setText(msg))
@@ -319,38 +244,40 @@ class BackendSettingsDialog(QDialog):
         if success:
             self._dd_path_edit.setText(result)
             self._check_dd()
+            QMessageBox.information(self, 'DD 驱动下载完成', 'DD驱动下载并配置成功！当前已可用。')
         else:
-            self._dd_status.setText(f'❌ 安装失败: {result}')
-            self._dd_status.setStyleSheet('color: #ef4444; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            QMessageBox.critical(self, '安装失败', f'下载或配置 DD 驱动失败:\n{result}')
 
     # ── Interception tab ─────────────────────────────────────────────
     def _build_interception_tab(self) -> QWidget:
+        from core.backends.interception_backend import InterceptionBackend
         w = QWidget()
         lay = QVBoxLayout(w)
-        lay.setContentsMargins(0, 15, 0, 0)
         lay.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         info = QLabel(
-            'Interception 是内核驱动模拟输入，可绕过游戏反作弊。兼容性广，适合多等国产游戏。<br><br>'
-            '点击下方按钮进行一键安装，安装时会有弹窗提示，安装完成后 <span style="color:#38bdf8;">必须重启系统！</span>'
+            '<b>Interception</b> 是开源内核驱动，支持按扫描码发送输入，<br>'
+            '兼容性广，适合 <b>外服游戏及需要严格穿透的场景</b>。<br><br>'
+            '点击下方按钮进行一键安装，安装时会有弹窗提示，<b>安装完成后必须重启系统！</b>'
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color: #d4d4d8; font-size: 13px; line-height: 1.5;")
+        info.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(info)
-        lay.addSpacing(20)
+        lay.addSpacing(8)
 
-        self._btn_int_install = self._create_install_btn('⬇ 一键下载并安装 Interception')
+        # One click install button
+        self._btn_int_install = QPushButton('⬇️ 一键下载并安装 Interception')
+        self._btn_int_install.setObjectName('btn_test_macro')
+        self._btn_int_install.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_int_install.clicked.connect(self._do_install_int)
         lay.addWidget(self._btn_int_install)
-        lay.addSpacing(6)
+        lay.addSpacing(12)
 
-        check_btn = self._create_check_btn('检测 Interception 驱动状态')
+        check_btn = QPushButton('检测 Interception 驱动状态')
         check_btn.clicked.connect(self._check_interception)
         lay.addWidget(check_btn)
 
         self._int_status = QLabel('')
-        self._int_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._int_status.setStyleSheet("margin-top: 10px;")
         lay.addWidget(self._int_status)
 
         self._check_interception()
@@ -359,16 +286,16 @@ class BackendSettingsDialog(QDialog):
     def _check_interception(self):
         from core.backends.interception_backend import InterceptionBackend
         if InterceptionBackend.is_available():
-            self._int_status.setText('✅ 驱动已安装且就绪')
-            self._int_status.setStyleSheet('color: #10b981; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            self._int_status.setText('✅ 驱动已安装，可用')
+            self._int_status.setStyleSheet('color:#1fa357; font-weight:bold;')
         else:
             self._int_status.setText('❌ 驱动未就绪或未安装')
-            self._int_status.setStyleSheet('color: #ef4444; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            self._int_status.setStyleSheet('color:#d94141;')
 
     def _do_install_int(self):
         self._btn_int_install.setEnabled(False)
         self._int_status.setText('准备安装...')
-        self._int_status.setStyleSheet('color: #3b82f6; font-size: 13px; font-weight: bold; margin-top: 10px;')
+        self._int_status.setStyleSheet('color:#1fa357;')
         
         self._installer_thread = DriverInstallerThread('int', self)
         self._installer_thread.log.connect(lambda msg: self._int_status.setText(msg))
@@ -378,8 +305,7 @@ class BackendSettingsDialog(QDialog):
     def _on_int_installed(self, success: bool, result: str):
         self._btn_int_install.setEnabled(True)
         if success:
-            self._int_status.setText(result)
-            self._int_status.setStyleSheet('color: #10b981; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            QMessageBox.information(self, 'Interception 安装', result)
+            self._check_interception()
         else:
-            self._int_status.setText(f'❌ 安装失败: {result}')
-            self._int_status.setStyleSheet('color: #ef4444; font-size: 13px; font-weight: bold; margin-top: 10px;')
+            QMessageBox.critical(self, '安装失败', f'安装 Interception 驱动失败:\n{result}')

@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSplitter,
     QListWidget, QListWidgetItem, QPushButton, QLabel, QFrame,
     QStackedWidget, QFileDialog, QMessageBox, QSizePolicy,
-    QInputDialog, QComboBox, QDialog, QTextEdit, QMenu
+    QInputDialog, QComboBox, QDialog, QTextEdit,
 )
 from pynput import keyboard as pynput_kb
 from pynput import mouse as pynput_mouse
@@ -70,6 +70,8 @@ from core import input_backend as _ib
 from gui.macro_editor import MacroEditorPanel
 from gui.trigger_editor import TriggerEditorPanel
 from gui.backend_settings_dialog import BackendSettingsDialog
+from gui.theme import THEME_QSS
+
 
 # ── Signal bridge: relay background-thread events to GUI thread ──
 class _Bridge(QObject):
@@ -89,6 +91,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle('ClaudyKey — AI 连点器')
         self.resize(1100, 720)
+        self.setStyleSheet(THEME_QSS)
 
         self.project = MacroProject()
         self._executor: MacroExecutor | None = None
@@ -121,171 +124,285 @@ class MainWindow(QMainWindow):
     #  UI construction
     # ══════════════════════════════════════════════════════════════
     def _build_ui(self):
-        self.is_dark_mode = False
-        from gui.theme import get_theme_qss
-        self.setStyleSheet(get_theme_qss(self.is_dark_mode))
-
         central = QWidget()
         self.setCentralWidget(central)
         root = QHBoxLayout(central)
-        root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(16)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
 
         root.addWidget(self._build_sidebar())
         root.addWidget(self._build_main_area(), 1)
 
     def _build_sidebar(self) -> QFrame:
+        from PyQt6.QtWidgets import QGraphicsDropShadowEffect
+        from PyQt6.QtGui import QColor
         side = QFrame()
         side.setObjectName('sidebar')
-        side.setFixedWidth(200)
+        side.setFixedWidth(240)
+        
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(25)
+        shadow.setColor(QColor(230, 190, 210, 60))
+        shadow.setOffset(0, 4)
+        side.setGraphicsEffect(shadow)
         
         lay = QVBoxLayout(side)
-        lay.setContentsMargins(16, 16, 16, 16)
-        lay.setSpacing(12)
+        lay.setContentsMargins(16, 20, 16, 20)
+        lay.setSpacing(16)
 
-        # Profile buttons
-        self._btn_new = QPushButton('🆕  新建方案', objectName='btn_nav')
-        self._btn_new.clicked.connect(self._new_project_prompt)
-        self._btn_load = QPushButton('📂  加载方案', objectName='btn_nav')
-        self._btn_load.clicked.connect(self._open_project)
-        self._btn_save = QPushButton('💾  保存方案', objectName='btn_nav')
-        self._btn_save.clicked.connect(self._save_project)
+        # Logo
+        logo = QLabel('⌨  ClaudyKey')
+        logo.setFont(QFont('Segoe UI', 18, QFont.Weight.Bold))
+        logo.setObjectName('lbl_logo')
+        lay.addWidget(logo)
+        lay.addSpacing(16)
 
-        lay.addWidget(self._btn_new)
-        lay.addWidget(self._btn_load)
-        lay.addWidget(self._btn_save)
+        # Mode Selector
+        mode_lay = QHBoxLayout()
+        mode_lay.setSpacing(0)
+        self._btn_mode_loop = QPushButton('🔁循环')
+        self._btn_mode_cond = QPushButton('🔍条件')
+        self._btn_mode_loop.setCheckable(True)
+        self._btn_mode_cond.setCheckable(True)
         
-        lay.addSpacing(20)
-
-        # Mode and Run
-        self._btn_mode = QPushButton('🔄  循环模式', objectName='btn_nav')
-        self._btn_mode.clicked.connect(self._toggle_mode)
-        lay.addWidget(self._btn_mode)
-
-        self._btn_run = QPushButton('▶  运行', objectName='btn_nav')
-        self._btn_run.setCheckable(True)
-        self._btn_run.clicked.connect(self._toggle_run_state)
-        self._btn_run.setStyleSheet("color: #10b981; font-weight: bold;")
-        lay.addWidget(self._btn_run)
-
-        lay.addSpacing(20)
+        self._btn_mode_loop.setStyleSheet('QPushButton { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; } QPushButton:checked { background: rgba(255,255,255,0.65); color: #c94080; border-color: rgba(255,255,255,0.6); }')
+        self._btn_mode_cond.setStyleSheet('QPushButton { border-top-left-radius: 0; border-bottom-left-radius: 0; } QPushButton:checked { background: rgba(255,255,255,0.65); color: #c94080; border-color: rgba(255,255,255,0.6); }')
+        
+        self._btn_mode_loop.clicked.connect(lambda: self._set_mode('loop'))
+        self._btn_mode_cond.clicked.connect(lambda: self._set_mode('conditional'))
+        mode_lay.addWidget(self._btn_mode_loop)
+        mode_lay.addWidget(self._btn_mode_cond)
+        
+        # Wrapped mode lay in group
+        frm_mode = QFrame()
+        frm_mode.setObjectName('sidebar_group')
+        ll = QVBoxLayout(frm_mode)
+        ll.setContentsMargins(0,0,0,0)
+        mode_lbl = QLabel('运行模式')
+        mode_lbl.setObjectName('lbl_sidebar_hdr')
+        ll.addWidget(mode_lbl)
+        ll.addLayout(mode_lay)
+        lay.addWidget(frm_mode)
 
         # Settings
-        self._btn_hk = QPushButton('⌨  全局热键', objectName='btn_nav')
-        self._btn_hk.clicked.connect(self._on_hotkey_setup)
-        self._btn_drv = QPushButton('⚙  驱动设置', objectName='btn_nav')
-        self._btn_drv.clicked.connect(self._on_backend_settings)
-        self._btn_theme = QPushButton('🌗  切换主题', objectName='btn_nav')
-        self._btn_theme.clicked.connect(self._toggle_theme)
-
-        lay.addWidget(self._btn_hk)
-        lay.addWidget(self._btn_drv)
-        lay.addWidget(self._btn_theme)
+        frm_set = QFrame()
+        frm_set.setObjectName('sidebar_group')
+        sl = QVBoxLayout(frm_set)
+        sl.setContentsMargins(0,0,0,0)
         
+        # Hotkey
+        sl.addWidget(QLabel('全局热键', objectName='lbl_sidebar_hdr'))
+        self._hotkey_btn = QPushButton('设置: F9')
+        self._hotkey_btn.clicked.connect(self._on_hotkey_setup)
+        sl.addWidget(self._hotkey_btn)
+        sl.addSpacing(8)
+
+        # Input driver
+        bd_row = QHBoxLayout()
+        bd_row.setContentsMargins(0,0,0,0)
+        sl.addWidget(QLabel('输入驱动', objectName='lbl_sidebar_hdr'))
+        self._backend_combo = QComboBox()
+        self._populate_backend_combo()
+        self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
+        bd_cfg_btn = QPushButton('⚙')
+        bd_cfg_btn.setObjectName('btn_icon')
+        bd_cfg_btn.setFixedWidth(30)
+        bd_cfg_btn.clicked.connect(self._on_backend_settings)
+        bd_row.addWidget(self._backend_combo, 1)
+        bd_row.addWidget(bd_cfg_btn)
+        sl.addLayout(bd_row)
+        lay.addWidget(frm_set)
+        
+        lay.addSpacing(16)
+
+        # Navigation Menu
+        nav_lbl = QLabel('工作区')
+        nav_lbl.setObjectName('lbl_sidebar_hdr')
+        lay.addWidget(nav_lbl)
+        
+        self._btn_nav_macro = QPushButton('📦  宏管理')
+        self._btn_nav_macro.setObjectName('btn_nav')
+        self._btn_nav_macro.setCheckable(True)
+        self._btn_nav_macro.setChecked(True)
+        self._btn_nav_macro.clicked.connect(lambda: self._switch_nav(0))
+        
+        self._btn_nav_trig = QPushButton('⚡  条件触发器')
+        self._btn_nav_trig.setObjectName('btn_nav')
+        self._btn_nav_trig.setCheckable(True)
+        self._btn_nav_trig.clicked.connect(lambda: self._switch_nav(1))
+        
+        lay.addWidget(self._btn_nav_macro)
+        lay.addWidget(self._btn_nav_trig)
+
         lay.addStretch()
+
+        # File Config
+        file_lay = QHBoxLayout()
+        file_lay.setContentsMargins(0,0,0,0)
+        file_lay.setSpacing(4)
+        
+        self._proj_combo = QComboBox()
+        self._proj_combo.setToolTip("选择配置文件")
+        self._proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
+        file_lay.addWidget(self._proj_combo, 1)
+
+        b_new = QPushButton('➕')
+        b_new.setToolTip('新建配置')
+        b_new.setObjectName('btn_icon')
+        b_new.setFixedWidth(28)
+        b_new.clicked.connect(self._new_project_prompt)
+        file_lay.addWidget(b_new)
+
+        b_open = QPushButton('📂')
+        b_open.setToolTip('浏览本地')
+        b_open.setObjectName('btn_icon')
+        b_open.setFixedWidth(28)
+        b_open.clicked.connect(self._open_project)
+        file_lay.addWidget(b_open)
+
+        lay.addLayout(file_lay)
+        lay.addSpacing(12)
+
+        # Control area
+        self._btn_run = QPushButton('▶ 启动')
+        self._btn_run.setObjectName('btn_run')
+        self._btn_run.clicked.connect(self._start_all)
+
+        self._btn_stop = QPushButton('■ 停止')
+        self._btn_stop.setObjectName('btn_stop')
+        self._btn_stop.clicked.connect(self._stop_all)
+        self._btn_stop.setEnabled(False)
+
+        lay.addWidget(self._btn_run)
+        lay.addWidget(self._btn_stop)
 
         return side
 
-    def _toggle_theme(self):
-        self.is_dark_mode = not self.is_dark_mode
-        from gui.theme import get_theme_qss
-        self.setStyleSheet(get_theme_qss(self.is_dark_mode))
-
-    def _toggle_mode(self):
-        if self._running:
-            QMessageBox.warning(self, "运行中", "请先停止运行再切换模式。")
-            return
-        m = getattr(self.project, 'mode', 'loop')
-        self._set_mode('conditional' if m == 'loop' else 'loop')
-
-    def _toggle_run_state(self):
-        if self._running:
-            self._stop_all()
-            self._btn_run.setChecked(False)
-        else:
-            self._start_all()
-            self._btn_run.setChecked(True)
+    def _switch_nav(self, idx: int):
+        self.stack.setCurrentIndex(idx)
+        self._btn_nav_macro.setChecked(idx == 0)
+        self._btn_nav_trig.setChecked(idx == 1)
 
     def _build_main_area(self) -> QWidget:
-        w = QWidget()
-        right_lay = QVBoxLayout(w)
-        right_lay.setContentsMargins(0, 0, 0, 0)
-        right_lay.setSpacing(16)
+        w = QFrame()
+        w.setObjectName('main_area')
+        
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(4, 4, 4, 4)
+        outer.setSpacing(12)
 
-        # Upper Area
-        split_lay = QHBoxLayout()
-        split_lay.setSpacing(16)
+        self.stack = QStackedWidget()
 
-        # --- Macro List Column ---
-        m_list_cont = QFrame(objectName='macros_panel')
+        # Page 0: Macro Workspace
+        macro_page = QWidget()
+        m_lay = QHBoxLayout(macro_page)
+        m_lay.setContentsMargins(0,0,0,0)
+        
+        m_list_cont = QFrame()
+        m_list_cont.setObjectName('glass_card')
         m_list_cont.setFixedWidth(240)
         ml_lay = QVBoxLayout(m_list_cont)
-        ml_lay.setContentsMargins(12, 12, 12, 12)
+        ml_lay.setContentsMargins(10, 10, 10, 10)
         
         m_hdr = QHBoxLayout()
-        ml_lbl = QLabel('宏列表', objectName='lbl_title')
-        m_menu = QPushButton('⋮', objectName='btn_icon_tool')
+        ml_lbl = QLabel('宏列表')
+        ml_lbl.setObjectName('lbl_section')
+        m_add = QPushButton('＋', objectName='btn_icon')
+        m_add.setFixedSize(24, 24)
+        m_add.clicked.connect(self._new_macro)
+        m_del = QPushButton('－', objectName='btn_icon')
+        m_del.setFixedSize(24, 24)
+        m_del.clicked.connect(self._delete_macro)
         m_hdr.addWidget(ml_lbl, 1)
-        m_hdr.addWidget(m_menu)
+        m_hdr.addWidget(m_add)
+        m_hdr.addWidget(m_del)
         ml_lay.addLayout(m_hdr)
-
-        mac_menu = QMenu(self)
-        mac_menu.addAction('新建宏').triggered.connect(self._new_macro)
-        mac_menu.addAction('删除宏').triggered.connect(self._delete_macro)
-        m_menu.setMenu(mac_menu)
-        m_menu.setStyleSheet("QPushButton::menu-indicator { image: none; }")
 
         self.macro_list = QListWidget()
         self.macro_list.currentRowChanged.connect(self._on_macro_selected)
         ml_lay.addWidget(self.macro_list, 1)
-        split_lay.addWidget(m_list_cont)
-
-        # --- Macro Editor Column ---
-        m_editor_cont = QFrame(objectName='editor_panel')
-        me_lay = QVBoxLayout(m_editor_cont)
-        me_lay.setContentsMargins(0, 0, 0, 0)
+        
+        m_lay.addWidget(m_list_cont)
         
         self.macro_editor = MacroEditorPanel()
         self.macro_editor.changed.connect(self._on_project_changed)
-        # Note: we embed our current editor but its QSS will style it like the mockup.
-        me_lay.addWidget(self.macro_editor, 1)
-        
-        split_lay.addWidget(m_editor_cont, 1)
+        m_lay.addWidget(self.macro_editor, 1)
 
-        # We keep stack for trig list compatibility but it's not strictly 1:1 if we expose it
-        self.stack = QStackedWidget()
-        macro_page = QWidget()
-        mp_lay = QVBoxLayout(macro_page)
-        mp_lay.setContentsMargins(0,0,0,0)
-        mp_lay.addLayout(split_lay)
-        self.stack.addWidget(macro_page)
-        self.stack.setCurrentIndex(0)
-        
-        # We need the trigger list to exist logically so the app doesn't crash on getattr
+        # Page 1: Trigger Workspace
+        trig_page = QWidget()
+        t_lay = QHBoxLayout(trig_page)
+        t_lay.setContentsMargins(0,0,0,0)
+
+        t_list_cont = QFrame()
+        t_list_cont.setObjectName('glass_card')
+        t_list_cont.setFixedWidth(240)
+        tl_lay = QVBoxLayout(t_list_cont)
+        tl_lay.setContentsMargins(10, 10, 10, 10)
+
+        t_hdr = QHBoxLayout()
+        tl_lbl = QLabel('触发器列表')
+        tl_lbl.setObjectName('lbl_section')
+        t_add = QPushButton('＋', objectName='btn_icon')
+        t_add.setFixedSize(24, 24)
+        t_add.clicked.connect(self._new_trigger)
+        t_del = QPushButton('－', objectName='btn_icon')
+        t_del.setFixedSize(24, 24)
+        t_del.clicked.connect(self._delete_trigger)
+        t_hdr.addWidget(tl_lbl, 1)
+        t_hdr.addWidget(t_add)
+        t_hdr.addWidget(t_del)
+        tl_lay.addLayout(t_hdr)
+
         self.trigger_list = QListWidget()
+        self.trigger_list.currentRowChanged.connect(self._on_trigger_selected)
+        tl_lay.addWidget(self.trigger_list, 1)
+
+        t_lay.addWidget(t_list_cont)
+
         self.trigger_editor = TriggerEditorPanel()
+        self.trigger_editor.changed.connect(self._on_project_changed)
+        t_lay.addWidget(self.trigger_editor, 1)
 
-        right_lay.addWidget(self.stack, 1)
+        self.stack.addWidget(macro_page)
+        self.stack.addWidget(trig_page)
+        outer.addWidget(self.stack, 1)
 
-        # --- Bottom Status Bar ---
-        stat_bar = QFrame(objectName='status_bar')
-        stat_bar.setFixedHeight(40)
-        stat_lay = QHBoxLayout(stat_bar)
-        stat_lay.setContentsMargins(16, 0, 16, 0)
-
-        stat_lay.addWidget(QLabel('运行日志', styleSheet='font-weight: bold;'))
-        self._log_lbl = QLabel('等待中...')
-        stat_lay.addWidget(self._log_lbl)
+        # Log Panel
+        log_panel = QFrame()
+        log_panel.setObjectName('glass_card')
+        log_panel.setFixedHeight(140)
+        log_lay = QVBoxLayout(log_panel)
+        log_lay.setContentsMargins(10, 6, 10, 10)
         
+        log_hdr = QHBoxLayout()
+        log_lbl = QLabel('📜 运行日志', objectName='lbl_section')
+        self._btn_clear_log = QPushButton('清空', objectName='btn_icon')
+        self._btn_clear_log.setFixedWidth(48)
+        self._btn_clear_log.clicked.connect(lambda: self._log_view.clear())
+        log_hdr.addWidget(log_lbl, 1)
+        log_hdr.addWidget(self._btn_clear_log)
+        log_lay.addLayout(log_hdr)
+
+        self._log_view = QTextEdit()
+        self._log_view.setReadOnly(True)
+        self._log_view.setObjectName('log_view')
+        log_lay.addWidget(self._log_view)
+
+        # Status Bar integration into Log Panel
+        stat_lay = QHBoxLayout()
+        self._status_lbl = QLabel('就绪', objectName='lbl_status_ok')
+        self._hotkey_lbl = QLabel('全局热键: 未知')
+        self._hotkey_lbl.setStyleSheet('color: rgba(60,40,50,0.7); font-size: 11px;')
+        self._file_lbl = QLabel('')
+        self._file_lbl.setStyleSheet('color: rgba(60,40,50,0.7); font-size: 11px;')
+        stat_lay.addWidget(self._status_lbl)
         stat_lay.addStretch()
-        self._file_lbl = QLabel('配置文件已加载')
         stat_lay.addWidget(self._file_lbl)
-        
-        stat_lay.addStretch()
-        self._hotkey_lbl = QLabel('全局热键: 未设置')
+        stat_lay.addSpacing(12)
         stat_lay.addWidget(self._hotkey_lbl)
-
-        right_lay.addWidget(stat_bar)
+        log_lay.addLayout(stat_lay)
+        
+        outer.addWidget(log_panel)
         return w
 
     #  Sidebar list management
@@ -462,11 +579,22 @@ class MainWindow(QMainWindow):
         self._on_project_changed()
 
     def _update_ui_for_mode(self):
-        m = getattr(self.project, 'mode', 'loop')
+        m = self.project.mode
+        self._btn_mode_loop.setChecked(m == 'loop')
+        self._btn_mode_cond.setChecked(m == 'conditional')
+        
+        # Toggle trigger navigation button visibility
+        self._btn_nav_trig.setVisible(m == 'conditional')
+            
         if m == 'loop':
-            self._btn_mode.setText('🔄  循环模式')
+            self._btn_run.setText('▶  开始循环')
+            self._btn_stop.setText('■  停止循环')
+            # If we were on trigger page, go back to macro page
+            if self.stack.currentIndex() == 1:
+                self._switch_nav(0)
         else:
-            self._btn_mode.setText('🔄  巡检模式')
+            self._btn_run.setText('🔍  开始巡检')
+            self._btn_stop.setText('■  停止巡检')
 
     # ══════════════════════════════════════════════════════════════
     #  Run / Stop
@@ -476,7 +604,6 @@ class MainWindow(QMainWindow):
             return
         if not self.project.macros and not self.project.triggers:
             self._set_status('没有宏或触发器', 'err')
-            self._btn_run.setChecked(False)
             return
         # Always clean up any surviving engine from a previous run
         if self._trigger_engine and self._trigger_engine.is_alive():
@@ -484,8 +611,8 @@ class MainWindow(QMainWindow):
             self._trigger_engine = None
         self._running = True
         self._save_project()  # Auto-save changes before running
-        self._btn_run.setText('⏹  停止运行')
-        self._btn_run.setStyleSheet("color: #ef4444; font-weight: bold;")
+        self._btn_run.setEnabled(False)
+        self._btn_stop.setEnabled(True)
         self._set_status('运行中…', 'run')
 
         if self.project.mode == 'conditional':
@@ -545,8 +672,8 @@ class MainWindow(QMainWindow):
             self._trigger_engine.stop()
             self._trigger_engine = None
         self._running = False
-        self._btn_run.setChecked(False)
-        self._btn_run.setText('▶  运行模式' if self.project.mode == 'loop' else '▷  巡检模式')
+        self._btn_run.setEnabled(True)
+        self._btn_stop.setEnabled(False)
         self.macro_editor.clear_highlight()
         self._set_status('已停止', 'ok')
 
@@ -571,8 +698,8 @@ class MainWindow(QMainWindow):
             if self._running:
                 self._set_status('宏执行完毕', 'ok')
             self._running = False
-            self._btn_run.setChecked(False)
-            self._btn_run.setText('▶  运行模式' if self.project.mode == 'loop' else '▷  巡检模式')
+            self._btn_run.setEnabled(True)
+            self._btn_stop.setEnabled(False)
             self.macro_editor.clear_highlight()
 
     def _on_macro_error(self, msg: str):
@@ -620,27 +747,60 @@ class MainWindow(QMainWindow):
     #  Status bar
     # ══════════════════════════════════════════════════════════════
     def _set_status(self, msg: str, kind: str = 'ok'):
-        pass  # We don't have a dedicated status text lbl like before, we use _log_lbl
+        styles = {
+            'ok':  'color:#1fa357;',
+            'run': 'color:#d6871a;',
+            'err': 'color:#d94141;',
+        }
+        self._status_lbl.setText(msg)
+        self._status_lbl.setStyleSheet(styles.get(kind, ''))
 
     def _append_log(self, msg: str):
         import datetime
         ts = datetime.datetime.now().strftime('%H:%M:%S')
-        self._log_lbl.setText(f'[{ts}] {msg}')
+        self._log_view.append(f'<span style="color:#c490a8">[{ts}]</span> {msg}')
+        # Auto-scroll to bottom
+        sb = self._log_view.verticalScrollBar()
+        sb.setValue(sb.maximum())
 
     # ══════════════════════════════════════════════════════════════
     #  Input backend
     # ══════════════════════════════════════════════════════════════
+    def _populate_backend_combo(self) -> None:
+        """Fill the backend dropdown with available + unavailable options."""
+        _ib._ensure_defaults_registered()
+        self._backend_combo.blockSignals(True)
+        self._backend_combo.clear()
+        for cls in _ib.get_available_backends():
+            label = cls.display_name()
+            if not cls.is_available():
+                label += ' ⚠'
+            self._backend_combo.addItem(label, userData=cls.name())
+        # Select current project choice
+        current = getattr(self.project, 'input_backend', 'dd')
+        for i in range(self._backend_combo.count()):
+            if self._backend_combo.itemData(i) == current:
+                self._backend_combo.setCurrentIndex(i)
+                break
+        self._backend_combo.blockSignals(False)
 
-
+    def _on_backend_changed(self, _idx: int) -> None:
+        backend_name = self._backend_combo.currentData()
+        if not backend_name:
+            return
+        try:
+            _ib.set_backend(backend_name)
+            self.project.input_backend = backend_name
+            self._append_log(f'输入驱动切换 → {backend_name}')
+            self._on_project_changed()
+        except Exception as e:
+            self._append_log(f'[ERROR] 切换驱动失败: {e}')
 
     def _on_backend_settings(self) -> None:
         dlg = BackendSettingsDialog(self)
         dlg.exec()
-        current = _ib.get_active_name()
-        if getattr(self.project, 'input_backend', '') != current:
-            self.project.input_backend = current
-            self._append_log(f'输入驱动切换 → {current}')
-            self._on_project_changed()
+        # After the dialog closes, re-check availability and repopulate
+        self._populate_backend_combo()
 
     def _apply_saved_backend(self) -> None:
         """Called after loading a project to activate the saved backend."""
@@ -649,6 +809,7 @@ class MainWindow(QMainWindow):
             _ib.set_backend(name)
         except Exception:
             _ib.set_backend('dd')
+        self._populate_backend_combo()
 
     def _on_hotkey_setup(self):
         dlg = HotkeySetDialog(self)
@@ -692,10 +853,12 @@ class MainWindow(QMainWindow):
 
             # Update UI labels
             display = key_conf.replace('key:', '').replace('mouse:', 'Mouse ').upper().strip('<>')
-            self._btn_hk.setText(f'⌨  全局热键 ({display})')
-            self._hotkey_lbl.setText(f'全局热键: {display}')
+            self._btn_run.setText(f'▶  运行  ({display})')
+            self._btn_stop.setText(f'■  停止  ({display})')
+            self._hotkey_btn.setText(f'设置: {display}')
+            self._hotkey_lbl.setText(f'全局热键: {display} 开始 / 停止')
         except Exception as e:
-            self._append_log(f"热键绑定失败: {e}")
+            self._set_status(f"热键绑定失败: {e}", "err")
 
     # ══════════════════════════════════════════════════════════════
     #  Window close

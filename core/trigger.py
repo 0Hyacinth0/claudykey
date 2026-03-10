@@ -21,12 +21,12 @@ class TriggerEngine(threading.Thread):
         super().__init__(daemon=True, name='TriggerEngine')
         self.triggers = list(triggers)
         self.on_fire = on_fire
-        self._cancel_event = threading.Event()
+        self._stop = threading.Event()
         self._template_cache: Dict[str, Optional[np.ndarray]] = {}
         self._cooldown_until: Dict[str, float] = {}
 
     def stop(self):
-        self._cancel_event.set()
+        self._stop.set()
 
     def _load_template(self, path: str) -> Optional[np.ndarray]:
         if path not in self._template_cache:
@@ -77,12 +77,12 @@ class TriggerEngine(threading.Thread):
         self._template_cache.clear()
 
     def run(self):
-        while not self._cancel_event.is_set():
+        while not self._stop.is_set():
             now = time.monotonic()
             fired_event = None
             
             for t in self.triggers:
-                if self._cancel_event.is_set():
+                if self._stop.is_set():
                     break
                 if not t.enabled:
                     continue
@@ -99,8 +99,8 @@ class TriggerEngine(threading.Thread):
             
             if fired_event:
                 # Wait for the macro to finish before starting the next poll
-                while not fired_event.is_set() and not self._cancel_event.is_set():
-                    self._cancel_event.wait(0.1)
+                while not fired_event.is_set() and not self._stop.is_set():
+                    self._stop.wait(0.1)
                 # Once it finishes, the loop restarts from the very first trigger (sequential polling)
             else:
-                self._cancel_event.wait(0.1)
+                self._stop.wait(0.1)
