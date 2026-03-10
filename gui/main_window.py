@@ -143,48 +143,46 @@ class MainWindow(QMainWindow):
         lay.setContentsMargins(16, 16, 16, 16)
         lay.setSpacing(12)
 
-        # Mac Traffic Lights
-        mac_lay = QHBoxLayout()
-        mac_lay.setSpacing(8)
-        mac_red = QPushButton(objectName='mac_red')
-        mac_red.setFixedSize(12, 12)
-        mac_yel = QPushButton(objectName='mac_yel')
-        mac_yel.setFixedSize(12, 12)
-        mac_grn = QPushButton(objectName='mac_grn')
-        mac_grn.setFixedSize(12, 12)
-        mac_lay.addWidget(mac_red)
-        mac_lay.addWidget(mac_yel)
-        mac_lay.addWidget(mac_grn)
-        mac_lay.addStretch()
-        lay.addLayout(mac_lay)
-        lay.addSpacing(16)
+        # Profile buttons
+        self._btn_new = QPushButton('🆕  新建方案', objectName='btn_nav')
+        self._btn_new.clicked.connect(self._new_project_prompt)
+        self._btn_load = QPushButton('📂  加载方案', objectName='btn_nav')
+        self._btn_load.clicked.connect(self._open_project)
+        self._btn_save = QPushButton('💾  保存方案', objectName='btn_nav')
+        self._btn_save.clicked.connect(self._save_project)
 
-        # Nav Buttons
-        self._btn_run = QPushButton('▶  运行模式', objectName='btn_nav')
+        lay.addWidget(self._btn_new)
+        lay.addWidget(self._btn_load)
+        lay.addWidget(self._btn_save)
+        
+        lay.addSpacing(20)
+
+        # Mode and Run
+        self._btn_mode = QPushButton('🔄  循环模式', objectName='btn_nav')
+        self._btn_mode.clicked.connect(self._toggle_mode)
+        lay.addWidget(self._btn_mode)
+
+        self._btn_run = QPushButton('▶  运行', objectName='btn_nav')
         self._btn_run.setCheckable(True)
         self._btn_run.clicked.connect(self._toggle_run_state)
-        
+        self._btn_run.setStyleSheet("color: #10b981; font-weight: bold;")
+        lay.addWidget(self._btn_run)
+
+        lay.addSpacing(20)
+
+        # Settings
         self._btn_hk = QPushButton('⌨  全局热键', objectName='btn_nav')
         self._btn_hk.clicked.connect(self._on_hotkey_setup)
-        
         self._btn_drv = QPushButton('⚙  驱动设置', objectName='btn_nav')
         self._btn_drv.clicked.connect(self._on_backend_settings)
-
         self._btn_theme = QPushButton('🌗  切换主题', objectName='btn_nav')
         self._btn_theme.clicked.connect(self._toggle_theme)
 
-        lay.addWidget(self._btn_run)
         lay.addWidget(self._btn_hk)
         lay.addWidget(self._btn_drv)
         lay.addWidget(self._btn_theme)
         
         lay.addStretch()
-
-        # Bottom MACRO MANAGEMENT
-        self._btn_nav_macro = QPushButton('📂\\n宏管理')
-        self._btn_nav_macro.setObjectName('btn_macro_mgr')
-        self._btn_nav_macro.setFixedHeight(80)
-        lay.addWidget(self._btn_nav_macro)
 
         return side
 
@@ -192,6 +190,13 @@ class MainWindow(QMainWindow):
         self.is_dark_mode = not self.is_dark_mode
         from gui.theme import get_theme_qss
         self.setStyleSheet(get_theme_qss(self.is_dark_mode))
+
+    def _toggle_mode(self):
+        if self._running:
+            QMessageBox.warning(self, "运行中", "请先停止运行再切换模式。")
+            return
+        m = getattr(self.project, 'mode', 'loop')
+        self._set_mode('conditional' if m == 'loop' else 'loop')
 
     def _toggle_run_state(self):
         if self._running:
@@ -457,11 +462,11 @@ class MainWindow(QMainWindow):
         self._on_project_changed()
 
     def _update_ui_for_mode(self):
-        m = self.project.mode
+        m = getattr(self.project, 'mode', 'loop')
         if m == 'loop':
-            self._btn_run.setText('▶  运行模式')
+            self._btn_mode.setText('🔄  循环模式')
         else:
-            self._btn_run.setText('▷  巡检模式')
+            self._btn_mode.setText('🔄  巡检模式')
 
     # ══════════════════════════════════════════════════════════════
     #  Run / Stop
@@ -480,6 +485,7 @@ class MainWindow(QMainWindow):
         self._running = True
         self._save_project()  # Auto-save changes before running
         self._btn_run.setText('⏹  停止运行')
+        self._btn_run.setStyleSheet("color: #ef4444; font-weight: bold;")
         self._set_status('运行中…', 'run')
 
         if self.project.mode == 'conditional':
