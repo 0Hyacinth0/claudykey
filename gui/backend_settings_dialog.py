@@ -1,12 +1,88 @@
-"""Backend settings dialog — configure DD DLL path, check Interception install."""
+"""Backend settings dialog — configure DD DLL path, check Interception install, and one-click installers."""
 import os
+import sys
+import ssl
+import urllib.request
+import zipfile
+import tempfile
+import subprocess
+import shutil
+from typing import Optional
+
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QTabWidget, QWidget, QFormLayout,
     QLabel, QLineEdit, QPushButton, QHBoxLayout, QFileDialog,
-    QTextEdit,
+    QMessageBox, QProgressBar
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+
+# URLs for one-click installation
+DD_URL = 'https://cdn.jsdelivr.net/gh/huiqianlu/DD_Keyboard_Mouse@master/dd64.dll'
+INT_URL = 'https://github.com/oblitum/Interception/releases/download/v1.0.1/Interception.zip'
+
+
+class DriverInstallerThread(QThread):
+    log = pyqtSignal(str)
+    finished = pyqtSignal(bool, str)
+
+    def __init__(self, driver_type: str, parent=None):
+        super().__init__(parent)
+        self.driver_type = driver_type
+
+    def run(self):
+        try:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
+            if self.driver_type == 'dd':
+                self.log.emit('正在准备目录...')
+                here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                drivers_dir = os.path.join(here, 'drivers')
+                os.makedirs(drivers_dir, exist_ok=True)
+                target_dll = os.path.join(drivers_dir, 'dd64.dll')
+
+                self.log.emit('正在下载 DD驱动 (dd64.dll)...')
+                with urllib.request.urlopen(DD_URL, context=ctx) as response, open(target_dll, 'wb') as out_file:
+                    shutil.copyfileobj(response, out_file)
+                
+                self.log.emit('下载完成！')
+                self.finished.emit(True, target_dll)
+
+            elif self.driver_type == 'int':
+                self.log.emit('安装 pyinterception 依赖...')
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pyinterception'])
+
+                self.log.emit('正在下载 Interception 驱动包...')
+                temp_dir = tempfile.mkdtemp()
+                zip_path = os.path.join(temp_dir, 'Interception.zip')
+                
+                with urllib.request.urlopen(INT_URL, context=ctx) as response, open(zip_path, 'wb') as out_file:
+                    shutil.copyfileobj(response, out_file)
+                
+                self.log.emit('解压驱动包...')
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+                
+                # Default interception zip structure: 
+                # Interception/command line installer/install-interception.exe
+                installer_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install-interception.exe')
+                
+                self.log.emit('准备运行内核安装程序（需要管理员权限）...')
+                if sys.platform == 'win32':
+                    import ctypes
+                    # runas triggers UAC prompt
+                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", installer_path, "/install", None, 1)
+                    if int(ret) <= 32:
+                        raise RuntimeError(f'ShellExecute failed with code: {ret}')
+                else:
+                    self.log.emit('警告: 当前不是 Windows 系统，跳过驱动安装。')
+                
+                self.finished.emit(True, 'Interception 安装程序已唤起，请确认 UAC 弹窗并重启电脑生效。')
+
+        except Exception as e:
+            self.log.emit(f'发生错误: {e}')
+            self.finished.emit(False, str(e))
 
 
 class BackendSettingsDialog(QDialog):
@@ -15,8 +91,9 @@ class BackendSettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('输入驱动设置')
-        self.setMinimumSize(480, 360)
+        self.setMinimumSize(480, 420)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
+        self._installer_thread: Optional[DriverInstallerThread] = None
         self._build_ui()
 
     def _build_ui(self):
@@ -66,15 +143,19 @@ class BackendSettingsDialog(QDialog):
         info = QLabel(
             '<b>DD虚拟驱动</b> 通过内核驱动模拟输入，可绕过游戏反作弊。<br>'
             '适合 <b>剑网3、DNF</b> 等国产游戏。<br><br>'
-            '下载地址：<a href="https://www.ddxoft.com/">www.ddxoft.com</a><br>'
-            '下载后将 <code>dd64.dll</code>（64位）或 <code>dd.dll</code>（32位）<br>'
-            '放入项目 <code>drivers/</code> 目录，或在下方手动指定路径。'
+            '你可以手动下载并指定 dll，或者使用下方的<b>一键安装</b>。'
         )
         info.setWordWrap(True)
         info.setTextFormat(Qt.TextFormat.RichText)
-        info.setOpenExternalLinks(True)
         lay.addWidget(info)
         lay.addSpacing(8)
+
+        # One click install button
+        self._btn_dd_install = QPushButton('⬇️ 一键下载并配置 DD 驱动')
+        self._btn_dd_install.setStyleSheet('QPushButton { font-weight: bold; font-size: 13px; padding: 6px; }')
+        self._btn_dd_install.clicked.connect(self._do_install_dd)
+        lay.addWidget(self._btn_dd_install)
+        lay.addSpacing(12)
 
         form = QFormLayout()
         self._dd_path_edit = QLineEdit()
@@ -98,7 +179,6 @@ class BackendSettingsDialog(QDialog):
         self._dd_status = QLabel('')
         lay.addWidget(self._dd_status)
 
-        # Trigger an initial status check
         self._check_dd()
         return w
 
@@ -123,9 +203,8 @@ class BackendSettingsDialog(QDialog):
         if dll:
             self._dd_status.setText('✅ 驱动可用')
             self._dd_status.setStyleSheet('color:#1fa357; font-weight:bold;')
-            # Persist path for this session
             from core.backends import dd_backend
-            dd_backend._dll_path_cache = ''  # force reload
+            dd_backend._dll_path_cache = ''
             from core import input_backend as _ib
             if _ib.get_active_name() == 'dd':
                 _ib.set_backend('dd', dll_path=path)
@@ -133,8 +212,24 @@ class BackendSettingsDialog(QDialog):
             self._dd_status.setText('❌ DLL加载失败（可能位数不匹配或驱动未安装）')
             self._dd_status.setStyleSheet('color:#d94141;')
 
-    def get_dd_dll_path(self) -> str:
-        return self._dd_path_edit.text().strip()
+    def _do_install_dd(self):
+        self._btn_dd_install.setEnabled(False)
+        self._dd_status.setText('正在下载...')
+        self._dd_status.setStyleSheet('color:#1fa357;')
+        
+        self._installer_thread = DriverInstallerThread('dd', self)
+        self._installer_thread.log.connect(lambda msg: self._dd_status.setText(msg))
+        self._installer_thread.finished.connect(self._on_dd_installed)
+        self._installer_thread.start()
+
+    def _on_dd_installed(self, success: bool, result: str):
+        self._btn_dd_install.setEnabled(True)
+        if success:
+            self._dd_path_edit.setText(result)
+            self._check_dd()
+            QMessageBox.information(self, 'DD 驱动下载完成', 'DD驱动下载并配置成功！当前已可用。')
+        else:
+            QMessageBox.critical(self, '安装失败', f'下载或配置 DD 驱动失败:\n{result}')
 
     # ── Interception tab ─────────────────────────────────────────────
     def _build_interception_tab(self) -> QWidget:
@@ -146,20 +241,21 @@ class BackendSettingsDialog(QDialog):
         info = QLabel(
             '<b>Interception</b> 是开源内核驱动，支持按扫描码发送输入，<br>'
             '兼容性广，适合 <b>外服游戏及需要严格穿透的场景</b>。<br><br>'
-            '安装步骤：<ol>'
-            '<li>pip install pyinterception</li>'
-            '<li>以 <b>管理员</b> 身份运行：<br>'
-            '<code>install-interception.exe /install</code></li>'
-            '<li>重启电脑</li>'
-            '</ol>'
-            '⚠️ 可能需要开启 <b>测试签名模式</b> 或禁用驱动强制签名。'
+            '点击下方按钮进行一键安装，安装时会有弹窗提示，<b>安装完成后必须重启系统！</b>'
         )
         info.setWordWrap(True)
         info.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(info)
         lay.addSpacing(8)
 
-        check_btn = QPushButton('检测 Interception 驱动')
+        # One click install button
+        self._btn_int_install = QPushButton('⬇️ 一键下载并安装 Interception')
+        self._btn_int_install.setStyleSheet('QPushButton { font-weight: bold; font-size: 13px; padding: 6px; }')
+        self._btn_int_install.clicked.connect(self._do_install_int)
+        lay.addWidget(self._btn_int_install)
+        lay.addSpacing(12)
+
+        check_btn = QPushButton('检测 Interception 驱动状态')
         check_btn.clicked.connect(self._check_interception)
         lay.addWidget(check_btn)
 
@@ -175,6 +271,23 @@ class BackendSettingsDialog(QDialog):
             self._int_status.setText('✅ 驱动已安装，可用')
             self._int_status.setStyleSheet('color:#1fa357; font-weight:bold;')
         else:
-            self._int_status.setText(
-                '❌ 驱动未就绪\n' + InterceptionBackend.unavailable_reason())
+            self._int_status.setText('❌ 驱动未就绪或未安装')
             self._int_status.setStyleSheet('color:#d94141;')
+
+    def _do_install_int(self):
+        self._btn_int_install.setEnabled(False)
+        self._int_status.setText('准备安装...')
+        self._int_status.setStyleSheet('color:#1fa357;')
+        
+        self._installer_thread = DriverInstallerThread('int', self)
+        self._installer_thread.log.connect(lambda msg: self._int_status.setText(msg))
+        self._installer_thread.finished.connect(self._on_int_installed)
+        self._installer_thread.start()
+
+    def _on_int_installed(self, success: bool, result: str):
+        self._btn_int_install.setEnabled(True)
+        if success:
+            QMessageBox.information(self, 'Interception 安装', result)
+            self._check_interception()
+        else:
+            QMessageBox.critical(self, '安装失败', f'安装 Interception 驱动失败:\n{result}')
