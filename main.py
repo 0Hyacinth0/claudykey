@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QApplication, QSplashScreen, QLabel
 from PyQt6.QtCore import Qt, QTimer, qInstallMessageHandler, QtMsgType
 from PyQt6.QtGui import QFont
 
-from gui.theme import THEME_QSS
+from gui.theme import get_theme_qss
 
 
 def _warm_up_ocr():
@@ -38,7 +38,7 @@ def main():
     app.setApplicationName('ClaudyKey')
     app.setApplicationDisplayName('ClaudyKey')
     app.setStyle('Fusion')
-    app.setStyleSheet(THEME_QSS)
+    app.setStyleSheet(get_theme_qss(is_dark=False))
 
     # Splash screen
     splash = QSplashScreen()
