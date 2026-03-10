@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QSplitter,
     QListWidget, QListWidgetItem, QPushButton, QLabel, QFrame,
     QStackedWidget, QFileDialog, QMessageBox, QSizePolicy,
-    QInputDialog, QComboBox, QDialog,
+    QInputDialog, QComboBox, QDialog, QTextEdit,
 )
 from pynput import keyboard as pynput_kb
 from pynput import mouse as pynput_mouse
@@ -73,10 +73,11 @@ from gui.theme import THEME_QSS
 
 # ── Signal bridge: relay background-thread events to GUI thread ──
 class _Bridge(QObject):
-    step_changed = pyqtSignal(int)
-    macro_done = pyqtSignal()
-    macro_error = pyqtSignal(str)
-    trigger_fired = pyqtSignal(str)   # trigger id
+    step_changed   = pyqtSignal(int)
+    macro_done     = pyqtSignal()
+    macro_error    = pyqtSignal(str)
+    trigger_fired  = pyqtSignal(str)   # trigger id
+    log            = pyqtSignal(str)   # timestamped log line
 
 
 class MainWindow(QMainWindow):
@@ -103,6 +104,7 @@ class MainWindow(QMainWindow):
         self._bridge.macro_done.connect(self._on_macro_done)
         self._bridge.macro_error.connect(self._on_macro_error)
         self._bridge.trigger_fired.connect(self._on_trigger_fired)
+        self._bridge.log.connect(self._append_log)
 
         self._build_ui()
         self._register_hotkey()
@@ -283,8 +285,10 @@ class MainWindow(QMainWindow):
 
     def _build_editor_area(self) -> QWidget:
         w = QWidget()
-        lay = QVBoxLayout(w)
-        lay.setContentsMargins(16, 14, 16, 14)
+        outer = QVBoxLayout(w)
+        outer.setContentsMargins(16, 14, 16, 14)
+        outer.setSpacing(6)
+
         self.stack = QStackedWidget()
 
         # Page 0: placeholder
@@ -303,7 +307,32 @@ class MainWindow(QMainWindow):
         self.trigger_editor.changed.connect(self._on_project_changed)
         self.stack.addWidget(self.trigger_editor)
 
-        lay.addWidget(self.stack)
+        outer.addWidget(self.stack, 1)
+
+        # ── Log panel ──
+        log_hdr = QHBoxLayout()
+        log_lbl = QLabel('📜 运行日志')
+        log_lbl.setObjectName('lbl_section')
+        self._btn_clear_log = QPushButton('清空')
+        self._btn_clear_log.setFixedWidth(48)
+        self._btn_clear_log.setObjectName('btn_icon')
+        self._btn_clear_log.clicked.connect(lambda: self._log_view.clear())
+        log_hdr.addWidget(log_lbl, 1)
+        log_hdr.addWidget(self._btn_clear_log)
+        outer.addLayout(log_hdr)
+
+        self._log_view = QTextEdit()
+        self._log_view.setReadOnly(True)
+        self._log_view.setFixedHeight(120)
+        self._log_view.setObjectName('log_view')
+        self._log_view.setStyleSheet(
+            '#log_view { background: rgba(30,10,20,0.55); '
+            'color: #e8b4cc; border-radius: 8px; '
+            'font-family: Consolas, monospace; font-size: 11px; '
+            'border: 1px solid rgba(200,130,170,0.25); }'
+        )
+        outer.addWidget(self._log_view)
+
         return w
 
     def _build_statusbar(self) -> QFrame:
@@ -495,6 +524,10 @@ class MainWindow(QMainWindow):
         if not self.project.macros and not self.project.triggers:
             self._set_status('没有宏或触发器', 'err')
             return
+        # Always clean up any surviving engine from a previous run
+        if self._trigger_engine and self._trigger_engine.is_alive():
+            self._trigger_engine.stop()
+            self._trigger_engine = None
         self._running = True
         self._btn_run.setEnabled(False)
         self._btn_stop.setEnabled(True)
@@ -503,6 +536,7 @@ class MainWindow(QMainWindow):
         if self.project.mode == 'conditional':
             enabled = [t for t in self.project.triggers if t.enabled]
             if enabled:
+                self._append_log(f'开始巡检，共 {len(enabled)} 个触发器启用')
                 self._trigger_engine = TriggerEngine(
                     enabled, self._on_trigger_fired_bg)
                 self._trigger_engine.start()
@@ -521,6 +555,7 @@ class MainWindow(QMainWindow):
                 seq = self.project.macros[0]
                 
             if seq:
+                self._append_log(f'循环模式启动: {seq.name}')
                 self._run_macro(seq)
             else:
                 self._set_status('没有要运行的宏', 'err')
@@ -547,6 +582,7 @@ class MainWindow(QMainWindow):
         self._executor.start()
 
     def _stop_all(self):
+        self._append_log('已停止')
         if self._executor:
             self._executor.stop()
             self._executor = None
@@ -566,19 +602,32 @@ class MainWindow(QMainWindow):
         self.macro_editor.highlight_step(idx)
 
     def _on_macro_done(self):
-        if self._running:
-            self._set_status('宏执行完毕', 'ok')
-        self._running = False
-        self._btn_run.setEnabled(True)
-        self._btn_stop.setEnabled(False)
-        self.macro_editor.clear_highlight()
+        # In conditional mode the TriggerEngine drives execution;
+        # we should NOT reset the running state — the engine keeps going.
+        in_conditional = (self.project.mode == 'conditional'
+                          and self._trigger_engine is not None
+                          and self._trigger_engine.is_alive())
+        if in_conditional:
+            self._append_log('宏执行完毕 — 继续巡检...')
+            self._set_status('宏完成，巡检中…', 'run')
+            self.macro_editor.clear_highlight()
+        else:
+            self._append_log('宏执行完毕')
+            if self._running:
+                self._set_status('宏执行完毕', 'ok')
+            self._running = False
+            self._btn_run.setEnabled(True)
+            self._btn_stop.setEnabled(False)
+            self.macro_editor.clear_highlight()
 
     def _on_macro_error(self, msg: str):
+        self._append_log(f'[ERROR] {msg}')
         self._set_status(f'错误: {msg}', 'err')
         self._stop_all()
 
     def _on_trigger_fired_bg(self, trigger: TriggerConfig):
         """Called from TriggerEngine thread."""
+        self._bridge.log.emit(f'触发器命中: [{trigger.name}]')
         self._bridge.trigger_fired.emit(trigger.id)
         return self._execute_trigger_action(trigger)
 
@@ -633,6 +682,14 @@ class MainWindow(QMainWindow):
         }
         self._status_lbl.setText(msg)
         self._status_lbl.setStyleSheet(styles.get(kind, ''))
+
+    def _append_log(self, msg: str):
+        import datetime
+        ts = datetime.datetime.now().strftime('%H:%M:%S')
+        self._log_view.append(f'<span style="color:#c490a8">[{ts}]</span> {msg}')
+        # Auto-scroll to bottom
+        sb = self._log_view.verticalScrollBar()
+        sb.setValue(sb.maximum())
 
     def _on_hotkey_setup(self):
         dlg = HotkeySetDialog(self)
