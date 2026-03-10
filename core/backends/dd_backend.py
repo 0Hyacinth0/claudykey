@@ -54,30 +54,43 @@ def _load_dll(path: str) -> Optional[ctypes.CDLL]:
     if _dll_instance is not None and path == _dll_path_cache:
         return _dll_instance
     try:
-        dll = ctypes.CDLL(path)
+        # Try WinDLL first (standard for many Windows API-like DLLs), fallback to CDLL
+        try:
+            win_dll_cls = getattr(ctypes, 'WinDLL', ctypes.CDLL)
+            dll = win_dll_cls(path)
+            _ = dll.DD_btn
+        except Exception:
+            dll = ctypes.CDLL(path)
+            
         # Verify it has the expected functions
         _ = dll.DD_kbd
         _ = dll.DD_mov
         _ = dll.DD_btn
+        
+        # Initialization step required by many DD versions
+        init_res = dll.DD_btn(0)
+        if init_res not in (1, 2):  # usually returns 1 if success or 2 if already initialized
+            pass # We ignore failing here since some versions might not require it or return different values
+            
         _dll_instance = dll
         _dll_path_cache = path
         return dll
-    except Exception:
+    except Exception as e:
         return None
 
 
 def _get_default_dll_path() -> str:
-    """Look for dd.dll / dd64.dll next to the executable or in common paths."""
+    """Look for dd*.dll / DD*.dll next to the executable or in common paths."""
+    import glob
     here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    candidates = [
-        os.path.join(here, 'drivers', 'dd64.dll'),
-        os.path.join(here, 'drivers', 'dd.dll'),
-        os.path.join(here, 'dd64.dll'),
-        os.path.join(here, 'dd.dll'),
-    ]
-    for c in candidates:
-        if os.path.isfile(c):
-            return c
+    search_dirs = [os.path.join(here, 'drivers'), here]
+    
+    for d in search_dirs:
+        # Match any DLL that starts with dd or DD
+        matches = glob.glob(os.path.join(d, '[dD][dD]*.dll'))
+        for c in matches:
+            if os.path.isfile(c):
+                return c
     return ''
 
 
