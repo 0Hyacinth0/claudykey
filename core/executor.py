@@ -38,24 +38,18 @@ class MacroExecutor(threading.Thread):
         on_step: Optional[Callable[[int], None]] = None,
         on_done: Optional[Callable[[], None]] = None,
         on_error: Optional[Callable[[str], None]] = None,
-        on_log: Optional[Callable[[str], None]] = None,
     ):
         super().__init__(daemon=True, name='MacroExecutor')
         self.sequence = sequence
         self.on_step = on_step
         self.on_done = on_done
         self.on_error = on_error
-        self.on_log = on_log
         self._stop = threading.Event()
         self._mouse = MouseCtrl()
         self._kbd = KeyCtrl()
 
     def stop(self):
         self._stop.set()
-
-    def _log(self, msg: str):
-        if self.on_log:
-            self.on_log(msg)
 
     # ------------------------------------------------------------------ helpers
     def _resolve_key(self, part: str):
@@ -148,9 +142,7 @@ class MacroExecutor(threading.Thread):
 
     def run(self):
         try:
-            self._log(f"开始执行宏: {self.sequence.name}")
             self._run_slice(self.sequence.actions, 0, len(self.sequence.actions))
-            self._log(f"宏执行完毕: {self.sequence.name}")
         except Exception as e:
             if self.on_error:
                 self.on_error(str(e))
