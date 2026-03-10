@@ -69,7 +69,7 @@ class InputBackend(abc.ABC):
 
 _BACKENDS: dict[str, type[InputBackend]] = {}
 _active: Optional[InputBackend] = None
-_active_name: str = 'pynput'
+_active_name: str = 'dd'
 
 
 def register_backend(cls: type[InputBackend]) -> type[InputBackend]:
@@ -96,9 +96,9 @@ def get_backend() -> InputBackend:
     """Return the currently active backend, initialising pynput as default."""
     global _active
     if _active is None:
-        # Lazy-initialise with pynput
+        # Lazy-initialise with dd
         _ensure_defaults_registered()
-        set_backend('pynput')
+        set_backend('dd')
     return _active
 
 
@@ -109,4 +109,4 @@ def get_active_name() -> str:
 def _ensure_defaults_registered() -> None:
     """Import backends to trigger their @register_backend decorators."""
     if not _BACKENDS:
-        from core.backends import pynput_backend, dd_backend, interception_backend  # noqa: F401
+        from core.backends import dd_backend, interception_backend  # noqa: F401

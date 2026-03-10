@@ -207,7 +207,7 @@ class MainWindow(QMainWindow):
 
         bd_row = QHBoxLayout()
         self._backend_combo = QComboBox()
-        self._backend_combo.setToolTip('选择键鼠模拟驱动\npynput=默认，DD/Interception=游戏穿透')
+        self._backend_combo.setToolTip('选择键鼠模拟驱动\nDD=默认，Interception=全局扫描码穿透')
         self._backend_combo.setFixedWidth(115)
         self._populate_backend_combo()
         self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
@@ -672,26 +672,16 @@ class MainWindow(QMainWindow):
             else:
                 done_event.set()
         elif trigger.action_type == 'click':
-            from pynput.mouse import Controller as MC, Button
-            mc = MC()
+            bk = _ib.get_backend()
             x = trigger.action_params.get('x', 0)
             y = trigger.action_params.get('y', 0)
-            mc.position = (x, y)
-            mc.click(Button.left)
+            bk.mouse_click(x, y, 'left')
             done_event.set()
         elif trigger.action_type == 'key':
-            from pynput.keyboard import Controller as KC
-            from core.executor import _KEY_MAP
-            kc = KC()
-            keys = [_KEY_MAP.get(k.strip().lower(), k.strip())
-                    for k in trigger.action_params.get('key', '').split('+')]
+            bk = _ib.get_backend()
+            keys = [k.strip().lower() for k in trigger.action_params.get('key', '').split('+')]
             if keys:
-                for k in keys[:-1]:
-                    kc.press(k)
-                kc.press(keys[-1])
-                kc.release(keys[-1])
-                for k in reversed(keys[:-1]):
-                    kc.release(k)
+                bk.combo(keys)
             done_event.set()
         return done_event
 
@@ -729,7 +719,7 @@ class MainWindow(QMainWindow):
                 label += ' ⚠'
             self._backend_combo.addItem(label, userData=cls.name())
         # Select current project choice
-        current = getattr(self.project, 'input_backend', 'pynput')
+        current = getattr(self.project, 'input_backend', 'dd')
         for i in range(self._backend_combo.count()):
             if self._backend_combo.itemData(i) == current:
                 self._backend_combo.setCurrentIndex(i)
@@ -756,11 +746,11 @@ class MainWindow(QMainWindow):
 
     def _apply_saved_backend(self) -> None:
         """Called after loading a project to activate the saved backend."""
-        name = getattr(self.project, 'input_backend', 'pynput')
+        name = getattr(self.project, 'input_backend', 'dd')
         try:
             _ib.set_backend(name)
         except Exception:
-            _ib.set_backend('pynput')
+            _ib.set_backend('dd')
         self._populate_backend_combo()
 
     def _on_hotkey_setup(self):

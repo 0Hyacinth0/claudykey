@@ -127,7 +127,7 @@ class MacroProject:
         self.triggers: List[TriggerConfig] = []
         self.hotkey: str = '<f9>'
         self.mode: str = 'loop'  # 'loop' | 'conditional'
-        self.input_backend: str = 'pynput'  # 'pynput' | 'dd' | 'interception'
+        self.input_backend: str = 'dd'  # 'dd' | 'interception'
 
     def to_dict(self) -> dict:
         return {
@@ -145,7 +145,7 @@ class MacroProject:
         p.triggers = [TriggerConfig.from_dict(t) for t in d.get('triggers', [])]
         p.hotkey = d.get('hotkey', '<f9>')
         p.mode = d.get('mode', 'loop')
-        p.input_backend = d.get('input_backend', 'pynput')
+        p.input_backend = d.get('input_backend', 'dd')
         return p
 
     def save(self, path: str):
