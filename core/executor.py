@@ -1,32 +1,14 @@
-"""Macro execution engine — runs a MacroSequence in a background thread."""
+"""Macro execution engine — runs a MacroSequence in a background thread.
+
+Input backend is provided at construction time via `core.input_backend.get_backend()`.
+"""
 import random
 import threading
 import time
 from typing import List, Optional, Callable
 
-from pynput.mouse import Button, Controller as MouseCtrl
-from pynput.keyboard import Key, Controller as KeyCtrl
-
 from .macro import Action, MacroSequence
-
-# Map common key name strings to pynput Key objects
-_KEY_MAP = {
-    'ctrl': Key.ctrl, 'control': Key.ctrl,
-    'alt': Key.alt,
-    'shift': Key.shift,
-    'win': Key.cmd, 'windows': Key.cmd, 'super': Key.cmd,
-    'enter': Key.enter, 'return': Key.enter,
-    'space': Key.space,
-    'tab': Key.tab,
-    'esc': Key.esc, 'escape': Key.esc,
-    'backspace': Key.backspace,
-    'delete': Key.delete, 'del': Key.delete,
-    'up': Key.up, 'down': Key.down, 'left': Key.left, 'right': Key.right,
-    'home': Key.home, 'end': Key.end,
-    'pageup': Key.page_up, 'pgup': Key.page_up,
-    'pagedown': Key.page_down, 'pgdn': Key.page_down,
-    **{f'f{i}': getattr(Key, f'f{i}') for i in range(1, 13)},
-}
+from . import input_backend as _ib
 
 
 class MacroExecutor(threading.Thread):
@@ -45,47 +27,34 @@ class MacroExecutor(threading.Thread):
         self.on_done = on_done
         self.on_error = on_error
         self._stop = threading.Event()
-        self._mouse = MouseCtrl()
-        self._kbd = KeyCtrl()
 
     def stop(self):
         self._stop.set()
 
     # ------------------------------------------------------------------ helpers
-    def _resolve_key(self, part: str):
-        part = part.strip().lower()
-        return _KEY_MAP.get(part, part)
+    def _backend(self):
+        return _ib.get_backend()
 
     def _do_action(self, action: Action):
         p = action.params
         t = action.type
+        bk = self._backend()
 
         if t in ('click', 'left_click'):
-            self._mouse.position = (p['x'], p['y'])
-            time.sleep(0.04)
-            self._mouse.click(Button.left)
+            bk.mouse_click(p['x'], p['y'], 'left')
 
         elif t == 'right_click':
-            self._mouse.position = (p['x'], p['y'])
-            time.sleep(0.04)
-            self._mouse.click(Button.right)
+            bk.mouse_click(p['x'], p['y'], 'right')
 
         elif t == 'double_click':
-            self._mouse.position = (p['x'], p['y'])
-            time.sleep(0.04)
-            self._mouse.click(Button.left, 2)
+            bk.mouse_click(p['x'], p['y'], 'left', count=2)
 
         elif t == 'move':
-            self._mouse.position = (p['x'], p['y'])
+            bk.mouse_move(p['x'], p['y'])
 
         elif t == 'key':
-            keys = [self._resolve_key(k) for k in p.get('key', '').split('+')]
-            for k in keys[:-1]:
-                self._kbd.press(k)
-            self._kbd.press(keys[-1])
-            self._kbd.release(keys[-1])
-            for k in reversed(keys[:-1]):
-                self._kbd.release(k)
+            keys = [k.strip().lower() for k in p.get('key', '').split('+')]
+            bk.combo(keys)
 
         elif t == 'delay':
             ms = p.get('ms', 1000)
@@ -96,7 +65,6 @@ class MacroExecutor(threading.Thread):
                 time.sleep(0.02)
 
     def _random_sleep(self):
-        """Sleep for a random duration between min and max delay settings."""
         lo = self.sequence.random_delay_min_ms
         hi = self.sequence.random_delay_max_ms
         if hi > 0 and lo >= 0:
@@ -109,13 +77,11 @@ class MacroExecutor(threading.Thread):
 
     # ------------------------------------------------------------------ runner
     def _run_slice(self, actions: List[Action], start: int, end: int):
-        """Execute actions[start:end] handling nested loops."""
         i = start
         while i < end and not self._stop.is_set():
             a = actions[i]
             if a.type == 'loop_start':
                 count = a.params.get('count', -1)
-                # Find the matching loop_end
                 depth, j = 1, i + 1
                 while j < end and depth:
                     if actions[j].type == 'loop_start':
@@ -130,7 +96,7 @@ class MacroExecutor(threading.Thread):
                         break
                     self._run_slice(actions, i + 1, loop_end_idx)
                     iteration += 1
-                i = j  # skip past loop_end
+                i = j
             elif a.type == 'loop_end':
                 i += 1
             else:
@@ -149,3 +115,12 @@ class MacroExecutor(threading.Thread):
         finally:
             if self.on_done:
                 self.on_done()
+
+
+# ── Expose KEY_MAP for legacy trigger-action code ────────────────────────────
+# Trigger actions in main_window.py use _KEY_MAP to resolve key strings
+# when pynput is the backend. We provide a shim here.
+try:
+    from core.backends.pynput_backend import KEY_MAP as _KEY_MAP
+except Exception:
+    _KEY_MAP = {}

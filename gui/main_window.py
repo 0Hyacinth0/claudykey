@@ -66,8 +66,10 @@ class HotkeySetDialog(QDialog):
 from core.macro import MacroProject, MacroSequence, TriggerConfig
 from core.executor import MacroExecutor
 from core.trigger import TriggerEngine
+from core import input_backend as _ib
 from gui.macro_editor import MacroEditorPanel
 from gui.trigger_editor import TriggerEditorPanel
+from gui.backend_settings_dialog import BackendSettingsDialog
 from gui.theme import THEME_QSS
 
 
@@ -196,6 +198,27 @@ class MainWindow(QMainWindow):
         self._hotkey_btn.clicked.connect(self._on_hotkey_setup)
         self._hotkey_btn.setFixedWidth(120)
         lay.addWidget(self._hotkey_btn)
+        lay.addSpacing(16)
+
+        # ── Input backend selector ──
+        bd_lbl = QLabel('⌨ 输入驱动')
+        bd_lbl.setStyleSheet('color:#a0889a; font-size:12px;')
+        lay.addWidget(bd_lbl)
+
+        bd_row = QHBoxLayout()
+        self._backend_combo = QComboBox()
+        self._backend_combo.setToolTip('选择键鼠模拟驱动\npynput=默认，DD/Interception=游戏穿透')
+        self._backend_combo.setFixedWidth(115)
+        self._populate_backend_combo()
+        self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
+
+        bd_cfg_btn = QPushButton('⚙')
+        bd_cfg_btn.setFixedWidth(28)
+        bd_cfg_btn.setToolTip('驱动配置 / 安装说明')
+        bd_cfg_btn.clicked.connect(self._on_backend_settings)
+        bd_row.addWidget(self._backend_combo)
+        bd_row.addWidget(bd_cfg_btn)
+        lay.addLayout(bd_row)
 
         lay.addStretch()
 
@@ -481,6 +504,7 @@ class MainWindow(QMainWindow):
             self._file_lbl.setText(os.path.basename(path))
             self._register_hotkey()
             self._update_ui_for_mode()
+            self._apply_saved_backend()   # restore saved input driver
             self._set_status('项目已加载', 'ok')
         except Exception as e:
             QMessageBox.critical(self, '加载失败', str(e))
@@ -690,6 +714,54 @@ class MainWindow(QMainWindow):
         # Auto-scroll to bottom
         sb = self._log_view.verticalScrollBar()
         sb.setValue(sb.maximum())
+
+    # ══════════════════════════════════════════════════════════════
+    #  Input backend
+    # ══════════════════════════════════════════════════════════════
+    def _populate_backend_combo(self) -> None:
+        """Fill the backend dropdown with available + unavailable options."""
+        _ib._ensure_defaults_registered()
+        self._backend_combo.blockSignals(True)
+        self._backend_combo.clear()
+        for cls in _ib.get_available_backends():
+            label = cls.display_name()
+            if not cls.is_available():
+                label += ' ⚠'
+            self._backend_combo.addItem(label, userData=cls.name())
+        # Select current project choice
+        current = getattr(self.project, 'input_backend', 'pynput')
+        for i in range(self._backend_combo.count()):
+            if self._backend_combo.itemData(i) == current:
+                self._backend_combo.setCurrentIndex(i)
+                break
+        self._backend_combo.blockSignals(False)
+
+    def _on_backend_changed(self, _idx: int) -> None:
+        backend_name = self._backend_combo.currentData()
+        if not backend_name:
+            return
+        try:
+            _ib.set_backend(backend_name)
+            self.project.input_backend = backend_name
+            self._append_log(f'输入驱动切换 → {backend_name}')
+            self._on_project_changed()
+        except Exception as e:
+            self._append_log(f'[ERROR] 切换驱动失败: {e}')
+
+    def _on_backend_settings(self) -> None:
+        dlg = BackendSettingsDialog(self)
+        dlg.exec()
+        # After the dialog closes, re-check availability and repopulate
+        self._populate_backend_combo()
+
+    def _apply_saved_backend(self) -> None:
+        """Called after loading a project to activate the saved backend."""
+        name = getattr(self.project, 'input_backend', 'pynput')
+        try:
+            _ib.set_backend(name)
+        except Exception:
+            _ib.set_backend('pynput')
+        self._populate_backend_combo()
 
     def _on_hotkey_setup(self):
         dlg = HotkeySetDialog(self)
