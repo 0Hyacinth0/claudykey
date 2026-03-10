@@ -2,7 +2,7 @@
 
 Requires the Interception kernel driver to be installed.
   GitHub: https://github.com/oblitum/Interception
-  Python binding: pip install pyinterception
+  Python binding: pip install interception-python
 
 Install driver (run as Administrator, Windows test-signing or DSEC off):
   interception\\command line installer\\install-interception.exe /install
@@ -82,8 +82,8 @@ class InterceptionBackend(InputBackend):
     @classmethod
     def unavailable_reason(cls) -> str:
         return (
-            'Interception 驱动未安装或 pyinterception 未安装。\n'
-            '1. pip install pyinterception\n'
+            'Interception 驱动未安装或 interception-python 未安装。\n'
+            '1. pip install interception-python\n'
             '2. 以管理员身份运行 install-interception.exe /install\n'
             '3. 重启 Windows\n'
             '（可能需要关闭驱动强制签名验证）'

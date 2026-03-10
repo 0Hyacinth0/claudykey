@@ -50,8 +50,8 @@ class DriverInstallerThread(QThread):
                 self.finished.emit(True, target_dll)
 
             elif self.driver_type == 'int':
-                self.log.emit('安装 pyinterception 依赖...')
-                subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'pyinterception'])
+                self.log.emit('安装 interception-python 依赖...')
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'interception-python'])
 
                 self.log.emit('正在下载 Interception 驱动包...')
                 temp_dir = tempfile.mkdtemp()
