@@ -135,14 +135,15 @@ class MainWindow(QMainWindow):
 
     def _build_sidebar(self) -> QFrame:
         from PyQt6.QtWidgets import QGraphicsDropShadowEffect
+        from PyQt6.QtGui import QColor
         side = QFrame()
         side.setObjectName('sidebar')
         side.setFixedWidth(240)
         
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(20)
-        shadow.setColor(Qt.GlobalColor.black)
-        shadow.setOffset(0, 0)
+        shadow.setBlurRadius(25)
+        shadow.setColor(QColor(230, 190, 210, 60))
+        shadow.setOffset(0, 4)
         side.setGraphicsEffect(shadow)
         
         lay = QVBoxLayout(side)
@@ -239,13 +240,26 @@ class MainWindow(QMainWindow):
         file_lay = QHBoxLayout()
         file_lay.setContentsMargins(0,0,0,0)
         file_lay.setSpacing(4)
-        for label, tip, slot in [('📂', '打开项目', self._open_project), ('💾', '保存项目', self._save_project), ('📄', '新建项目', self._new_project)]:
-            b = QPushButton(label)
-            b.setToolTip(tip)
-            b.setObjectName('btn_icon')
-            b.setFixedWidth(32)
-            b.clicked.connect(slot)
-            file_lay.addWidget(b)
+        
+        self._proj_combo = QComboBox()
+        self._proj_combo.setToolTip("选择配置文件")
+        self._proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
+        file_lay.addWidget(self._proj_combo, 1)
+
+        b_new = QPushButton('➕')
+        b_new.setToolTip('新建配置')
+        b_new.setObjectName('btn_icon')
+        b_new.setFixedWidth(28)
+        b_new.clicked.connect(self._new_project_prompt)
+        file_lay.addWidget(b_new)
+
+        b_open = QPushButton('📂')
+        b_open.setToolTip('浏览本地')
+        b_open.setObjectName('btn_icon')
+        b_open.setFixedWidth(28)
+        b_open.clicked.connect(self._open_project)
+        file_lay.addWidget(b_open)
+
         lay.addLayout(file_lay)
         lay.addSpacing(12)
 
@@ -476,37 +490,71 @@ class MainWindow(QMainWindow):
         if self.stack.currentIndex() == 2:
             self.trigger_editor._refresh_macro_combo()
 
-    def _new_project(self):
-        self._stop_all()
-        self.project = MacroProject()
-        self._current_proj_path = ''
-        self._refresh_macro_list()
-        self._refresh_trigger_list()
+    def _refresh_proj_combo(self):
+        self._proj_combo_updating = True
+        self._proj_combo.clear()
+        
+        folder = os.path.dirname(self.DEFAULT_PROJ)
+        os.makedirs(folder, exist_ok=True)
+        
+        files = [f for f in os.listdir(folder) if f.endswith('.json')]
+        files.sort()
+        if not files:
+            MacroProject().save(self.DEFAULT_PROJ)
+            files = ['default.json']
+            
+        for f in files:
+            self._proj_combo.addItem(f, os.path.join(folder, f))
+            
+        if getattr(self, '_current_proj_path', None):
+            idx = self._proj_combo.findData(self._current_proj_path)
+            if idx >= 0:
+                self._proj_combo.setCurrentIndex(idx)
+        self._proj_combo_updating = False
 
-        self._file_lbl.setText('')
-        self._register_hotkey()
-        self._new_macro()
+    def _on_proj_combo_changed(self, idx: int):
+        if getattr(self, '_proj_combo_updating', False) or idx < 0:
+            return
+        path = self._proj_combo.itemData(idx)
+        if path and path != getattr(self, '_current_proj_path', ''):
+            self._save_project()
+            self._load_project(path)
+
+    def _new_project_prompt(self):
+        from PyQt6.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, '新建配置', '输入新配置名称:', text='config')
+        if ok and name:
+            if not name.endswith('.json'):
+                name += '.json'
+            self._save_project()
+            self._stop_all()
+            
+            self.project = MacroProject()
+            path = os.path.join(os.path.dirname(self.DEFAULT_PROJ), name)
+            self._current_proj_path = path
+            self.project.save(path)
+            
+            self._refresh_proj_combo()
+            self._load_project(path)
 
     def _save_project(self):
-        if not self._current_proj_path:
-            path, _ = QFileDialog.getSaveFileName(
-                self, '保存项目', self.DEFAULT_PROJ,
-                'ClaudyKey 项目 (*.json);;All Files (*)')
-            if not path:
-                return
-            self._current_proj_path = path
-        os.makedirs(os.path.dirname(self._current_proj_path), exist_ok=True)
-        self.project.save(self._current_proj_path)
-        self._file_lbl.setText(os.path.basename(self._current_proj_path))
-        self._set_status('已保存', 'ok')
+        p = getattr(self, '_current_proj_path', '') or self.DEFAULT_PROJ
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        self.project.save(p)
+        self._current_proj_path = p
+        if hasattr(self, '_file_lbl'):
+            self._file_lbl.setText(os.path.basename(p))
+        self._set_status('已自动保存', 'ok')
 
     def _open_project(self):
+        self._save_project()
         self._stop_all()
         path, _ = QFileDialog.getOpenFileName(
-            self, '打开项目', '',
+            self, '打开项目', os.path.dirname(self.DEFAULT_PROJ),
             'ClaudyKey 项目 (*.json);;All Files (*)')
         if path:
             self._load_project(path)
+            self._refresh_proj_combo()
 
     def _load_project(self, path: str):
         try:
