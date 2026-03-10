@@ -12,7 +12,7 @@ from typing import Optional
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QTabWidget, QWidget, QFormLayout,
     QLabel, QLineEdit, QPushButton, QHBoxLayout, QFileDialog,
-    QMessageBox, QProgressBar
+    QMessageBox, QProgressBar, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -97,13 +97,34 @@ class BackendSettingsDialog(QDialog):
         self._build_ui()
 
     def _build_ui(self):
-        lay = QVBoxLayout(self)
+        # Active backend selector
+        top_lay = QHBoxLayout()
+        top_lay.addWidget(QLabel('当前使用驱动:'))
+        self._combo_backend = QComboBox()
+        self._combo_backend.addItem('DD虚拟驱动', 'dd')
+        self._combo_backend.addItem('Interception拦截器', 'int')
+        
+        from core import input_backend as _ib
+        curr = _ib.get_active_name()
+        if curr == 'int':
+            self._combo_backend.setCurrentIndex(1)
+        else:
+            self._combo_backend.setCurrentIndex(0)
+            
+        self._combo_backend.currentIndexChanged.connect(self._on_backend_changed)
+        top_lay.addWidget(self._combo_backend, 1)
+        lay.addLayout(top_lay)
+        lay.addSpacing(4)
+
         self.tabs = QTabWidget()
         lay.addWidget(self.tabs)
 
-        self.tabs.addTab(self._build_pynput_tab(), 'pynput（默认）')
         self.tabs.addTab(self._build_dd_tab(), 'DD虚拟驱动')
         self.tabs.addTab(self._build_interception_tab(), 'Interception')
+
+        # Link active backend combo to tab index (optional UX improvement)
+        self._combo_backend.currentIndexChanged.connect(self.tabs.setCurrentIndex)
+        self.tabs.currentChanged.connect(self._combo_backend.setCurrentIndex)
 
         # Close button
         btn_row = QHBoxLayout()
@@ -113,25 +134,20 @@ class BackendSettingsDialog(QDialog):
         btn_row.addWidget(close_btn)
         lay.addLayout(btn_row)
 
-    # ── pynput tab ──────────────────────────────────────────────────
-    def _build_pynput_tab(self) -> QWidget:
-        w = QWidget()
-        lay = QVBoxLayout(w)
-        lay.setAlignment(Qt.AlignmentFlag.AlignTop)
-        lbl = QLabel(
-            '<b>pynput</b> 是默认输入后端，无需额外安装。<br><br>'
-            '使用 Windows SendInput API，<b>适合普通场景</b>，但部分游戏反作弊会屏蔽此方式。<br>'
-            '如在游戏中无效，请切换为 DD虚拟驱动 或 Interception驱动。'
-        )
-        lbl.setWordWrap(True)
-        lbl.setTextFormat(Qt.TextFormat.RichText)
-
-        status = QLabel('✅ 当前可用')
-        status.setStyleSheet('color: #1fa357; font-weight: bold;')
-        lay.addWidget(lbl)
-        lay.addSpacing(12)
-        lay.addWidget(status)
-        return w
+    def _on_backend_changed(self, idx: int):
+        from core import input_backend as _ib
+        backend_name = self._combo_backend.itemData(idx)
+        if backend_name == 'dd':
+            dd_path = self._dd_path_edit.text().strip()
+            try:
+                _ib.set_backend('dd', dll_path=dd_path)
+            except Exception as e:
+                pass
+        elif backend_name == 'int':
+            try:
+                _ib.set_backend('int')
+            except Exception as e:
+                pass
 
     # ── DD tab ──────────────────────────────────────────────────────
     def _build_dd_tab(self) -> QWidget:
