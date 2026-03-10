@@ -161,7 +161,8 @@ class BackendSettingsDialog(QDialog):
         info = QLabel(
             '<b>DD虚拟驱动</b> 通过内核驱动模拟输入，可绕过游戏反作弊。<br>'
             '适合 <b>剑网3、DNF</b> 等国产游戏。<br><br>'
-            '你可以手动下载并指定 dll，或者使用下方的<b>一键安装</b>。'
+            '自动下载可能因源仓库失效而失败（HTTP 404）。<br>'
+            '如果遇到下载失败，请<b>手动在网上搜索并下载 "dd64.dll"</b>，然后将其路径填在下方。'
         )
         info.setWordWrap(True)
         info.setTextFormat(Qt.TextFormat.RichText)
@@ -248,7 +249,10 @@ class BackendSettingsDialog(QDialog):
             self._check_dd()
             QMessageBox.information(self, 'DD 驱动下载完成', 'DD驱动下载并配置成功！当前已可用。')
         else:
-            QMessageBox.critical(self, '安装失败', f'下载或配置 DD 驱动失败:\n{result}')
+            if '404' in result or 'Not Found' in result:
+                QMessageBox.critical(self, '下载失败', '自动下载源已失效 (HTTP 404)。\n\n请手动在网上搜索并下载 "dd64.dll"，然后使用上方【浏览】按钮选择该文件。')
+            else:
+                QMessageBox.critical(self, '安装失败', f'下载或配置 DD 驱动失败:\n{result}')
 
     # ── Interception tab ─────────────────────────────────────────────
     def _build_interception_tab(self) -> QWidget:
