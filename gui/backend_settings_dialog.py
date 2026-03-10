@@ -97,6 +97,8 @@ class BackendSettingsDialog(QDialog):
         self._build_ui()
 
     def _build_ui(self):
+        lay = QVBoxLayout(self)
+        
         # Active backend selector
         top_lay = QHBoxLayout()
         top_lay.addWidget(QLabel('当前使用驱动:'))
