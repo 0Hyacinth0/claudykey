@@ -204,6 +204,7 @@ class MainWindow(QMainWindow):
         self._populate_backend_combo()
         self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
         bd_cfg_btn = QPushButton('⚙')
+        bd_cfg_btn.setObjectName('btn_icon')
         bd_cfg_btn.setFixedWidth(30)
         bd_cfg_btn.clicked.connect(self._on_backend_settings)
         bd_row.addWidget(self._backend_combo, 1)
@@ -561,6 +562,7 @@ class MainWindow(QMainWindow):
             self._trigger_engine.stop()
             self._trigger_engine = None
         self._running = True
+        self._save_project()  # Auto-save changes before running
         self._btn_run.setEnabled(False)
         self._btn_stop.setEnabled(True)
         self._set_status('运行中…', 'run')

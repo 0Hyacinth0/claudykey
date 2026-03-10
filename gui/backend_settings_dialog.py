@@ -152,7 +152,8 @@ class BackendSettingsDialog(QDialog):
 
         # One click install button
         self._btn_dd_install = QPushButton('⬇️ 一键下载并配置 DD 驱动')
-        self._btn_dd_install.setStyleSheet('QPushButton { font-weight: bold; font-size: 13px; padding: 6px; }')
+        self._btn_dd_install.setObjectName('btn_test_macro')
+        self._btn_dd_install.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_dd_install.clicked.connect(self._do_install_dd)
         lay.addWidget(self._btn_dd_install)
         lay.addSpacing(12)
@@ -250,7 +251,8 @@ class BackendSettingsDialog(QDialog):
 
         # One click install button
         self._btn_int_install = QPushButton('⬇️ 一键下载并安装 Interception')
-        self._btn_int_install.setStyleSheet('QPushButton { font-weight: bold; font-size: 13px; padding: 6px; }')
+        self._btn_int_install.setObjectName('btn_test_macro')
+        self._btn_int_install.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_int_install.clicked.connect(self._do_install_int)
         lay.addWidget(self._btn_int_install)
         lay.addSpacing(12)
