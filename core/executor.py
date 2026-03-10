@@ -26,10 +26,10 @@ class MacroExecutor(threading.Thread):
         self.on_step = on_step
         self.on_done = on_done
         self.on_error = on_error
-        self._stop = threading.Event()
+        self._cancel_event = threading.Event()
 
     def stop(self):
-        self._stop.set()
+        self._cancel_event.set()
 
     # ------------------------------------------------------------------ helpers
     def _backend(self):
@@ -60,7 +60,7 @@ class MacroExecutor(threading.Thread):
             ms = p.get('ms', 1000)
             deadline = time.monotonic() + ms / 1000.0
             while time.monotonic() < deadline:
-                if self._stop.is_set():
+                if self._cancel_event.is_set():
                     return
                 time.sleep(0.02)
 
@@ -71,14 +71,14 @@ class MacroExecutor(threading.Thread):
             ms = random.randint(lo, max(lo, hi))
             deadline = time.monotonic() + ms / 1000.0
             while time.monotonic() < deadline:
-                if self._stop.is_set():
+                if self._cancel_event.is_set():
                     return
                 time.sleep(0.01)
 
     # ------------------------------------------------------------------ runner
     def _run_slice(self, actions: List[Action], start: int, end: int):
         i = start
-        while i < end and not self._stop.is_set():
+        while i < end and not self._cancel_event.is_set():
             a = actions[i]
             if a.type == 'loop_start':
                 count = a.params.get('count', -1)
@@ -91,7 +91,7 @@ class MacroExecutor(threading.Thread):
                     j += 1
                 loop_end_idx = j - 1
                 iteration = 0
-                while not self._stop.is_set():
+                while not self._cancel_event.is_set():
                     if count != -1 and iteration >= count:
                         break
                     self._run_slice(actions, i + 1, loop_end_idx)
