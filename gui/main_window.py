@@ -624,41 +624,17 @@ class MainWindow(QMainWindow):
     # ══════════════════════════════════════════════════════════════
     #  Input backend
     # ══════════════════════════════════════════════════════════════
-    def _populate_backend_combo(self) -> None:
-        """Fill the backend dropdown with available + unavailable options."""
-        _ib._ensure_defaults_registered()
-        self._backend_combo.blockSignals(True)
-        self._backend_combo.clear()
-        for cls in _ib.get_available_backends():
-            label = cls.display_name()
-            if not cls.is_available():
-                label += ' ⚠'
-            self._backend_combo.addItem(label, userData=cls.name())
-        # Select current project choice
-        current = getattr(self.project, 'input_backend', 'dd')
-        for i in range(self._backend_combo.count()):
-            if self._backend_combo.itemData(i) == current:
-                self._backend_combo.setCurrentIndex(i)
-                break
-        self._backend_combo.blockSignals(False)
 
-    def _on_backend_changed(self, _idx: int) -> None:
-        backend_name = self._backend_combo.currentData()
-        if not backend_name:
-            return
-        try:
-            _ib.set_backend(backend_name)
-            self.project.input_backend = backend_name
-            self._append_log(f'输入驱动切换 → {backend_name}')
-            self._on_project_changed()
-        except Exception as e:
-            self._append_log(f'[ERROR] 切换驱动失败: {e}')
+
 
     def _on_backend_settings(self) -> None:
         dlg = BackendSettingsDialog(self)
         dlg.exec()
-        # After the dialog closes, re-check availability and repopulate
-        self._populate_backend_combo()
+        current = _ib.get_active_name()
+        if getattr(self.project, 'input_backend', '') != current:
+            self.project.input_backend = current
+            self._append_log(f'输入驱动切换 → {current}')
+            self._on_project_changed()
 
     def _apply_saved_backend(self) -> None:
         """Called after loading a project to activate the saved backend."""
@@ -667,7 +643,6 @@ class MainWindow(QMainWindow):
             _ib.set_backend(name)
         except Exception:
             _ib.set_backend('dd')
-        self._populate_backend_combo()
 
     def _on_hotkey_setup(self):
         dlg = HotkeySetDialog(self)
