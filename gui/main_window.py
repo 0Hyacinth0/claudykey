@@ -70,8 +70,6 @@ from core import input_backend as _ib
 from gui.macro_editor import MacroEditorPanel
 from gui.trigger_editor import TriggerEditorPanel
 from gui.backend_settings_dialog import BackendSettingsDialog
-from gui.theme import THEME_QSS
-
 
 # ── Signal bridge: relay background-thread events to GUI thread ──
 class _Bridge(QObject):
@@ -91,7 +89,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle('ClaudyKey — AI 连点器')
         self.resize(1100, 720)
-        self.setStyleSheet(THEME_QSS)
 
         self.project = MacroProject()
         self._executor: MacroExecutor | None = None
