@@ -108,6 +108,21 @@ class CyberSplash(QWidget):
         if v > 100: v = 100
         self.bar.setValue(v)
 
+def _warm_up_ocr():
+    """Pre-load EasyOCR model in background so first use is instant."""
+    try:
+        from core import ocr
+        ocr.warm_up()
+    except Exception:
+        pass
+
+
+def _qt_message_handler(mode, context, message):
+    if "iCCP" in message or "incorrect sRGB profile" in message:
+        return
+    import sys
+    sys.stderr.write(f"{message}\\n")
+
 def main():
     os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
 
