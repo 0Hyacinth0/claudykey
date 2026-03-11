@@ -115,7 +115,10 @@ class MainWindow(QMainWindow):
         if os.path.exists(self.DEFAULT_PROJ):
             self._load_project(self.DEFAULT_PROJ)
         else:
+            self._current_proj_path = self.DEFAULT_PROJ
             self._new_macro()
+            
+        self._refresh_proj_combo()
 
     # ══════════════════════════════════════════════════════════════
     #  UI construction
@@ -203,6 +206,13 @@ class MainWindow(QMainWindow):
         self._proj_combo.setToolTip("选择配置文件")
         self._proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
         file_lay.addWidget(self._proj_combo, 1)
+
+        b_save = QPushButton('💾')
+        b_save.setToolTip('保存配置')
+        b_save.setObjectName('btn_icon')
+        b_save.setFixedWidth(28)
+        b_save.clicked.connect(self._save_project)
+        file_lay.addWidget(b_save)
 
         b_new = QPushButton('➕')
         b_new.setToolTip('新建配置')
@@ -337,6 +347,8 @@ class MainWindow(QMainWindow):
             self.macro_list.addItem(item)
         if 0 <= old_row < self.macro_list.count():
             self.macro_list.setCurrentRow(old_row)
+        elif self.macro_list.count() > 0:
+            self.macro_list.setCurrentRow(0)
         self.macro_list.blockSignals(False)
 
     def _refresh_trigger_list(self):
@@ -464,7 +476,7 @@ class MainWindow(QMainWindow):
         self._current_proj_path = p
         if hasattr(self, '_file_lbl'):
             self._file_lbl.setText(os.path.basename(p))
-        self._set_status('已自动保存', 'ok')
+        self._set_status('已保存配置', 'ok')
 
     def _open_project(self):
         self._save_project()
