@@ -146,48 +146,6 @@ class TriggerEditorPanel(QWidget):
         
         root.addWidget(self.txt_grp)
 
-        # ── Action on trigger ──
-        act_grp = QGroupBox('触发后执行')
-        act_layout = QFormLayout(act_grp)
-        self.act_combo = QComboBox()
-        self.act_combo.addItem('执行宏', 'run_macro')
-        self.act_combo.addItem('鼠标点击', 'click')
-        self.act_combo.addItem('发送按键', 'key')
-        self.act_combo.currentIndexChanged.connect(self._on_act_changed)
-
-        self.macro_combo = QComboBox()   # shown for run_macro
-        self.act_key_edit = QLineEdit()  # shown for key
-        self.act_key_edit.setPlaceholderText('例: ctrl+v')
-        self.act_row_macro = QHBoxLayout()
-        self.act_row_macro.addWidget(self.macro_combo)
-        act_layout.addRow('动作:', self.act_combo)
-        act_layout.addRow('宏:', self.macro_combo)
-        act_layout.addRow('按键:', self.act_key_edit)
-        root.addWidget(act_grp)
-
-        # ── Intervals ──
-        iv_row = QHBoxLayout()
-        iv_row.addWidget(QLabel('检测间隔:'))
-        self.interval_spin = QSpinBox()
-        self.interval_spin.setRange(100, 10000)
-        self.interval_spin.setSingleStep(100)
-        self.interval_spin.setSuffix(' ms')
-        self.interval_spin.setValue(500)
-        self.interval_spin.valueChanged.connect(
-            lambda v: self._set('check_interval_ms', v))
-        iv_row.addWidget(self.interval_spin)
-        iv_row.addSpacing(16)
-        iv_row.addWidget(QLabel('冷却时间:'))
-        self.cooldown_spin = QSpinBox()
-        self.cooldown_spin.setRange(200, 30000)
-        self.cooldown_spin.setSingleStep(200)
-        self.cooldown_spin.setSuffix(' ms')
-        self.cooldown_spin.setValue(2000)
-        self.cooldown_spin.valueChanged.connect(
-            lambda v: self._set('cooldown_ms', v))
-        iv_row.addWidget(self.cooldown_spin)
-        iv_row.addStretch()
-        root.addLayout(iv_row)
         root.addStretch()
 
     # ──────────────────────────────────────────── Load data
@@ -211,26 +169,9 @@ class TriggerEditorPanel(QWidget):
         
         # Template
         self._update_template_preview(trigger.template_path)
-        # Macro combos
-        self._refresh_macro_combo()
-        idx_a = self.act_combo.findData(trigger.action_type)
-        self.act_combo.setCurrentIndex(max(0, idx_a))
-        self.act_key_edit.setText(trigger.action_params.get('key', ''))
-        self.interval_spin.setValue(trigger.check_interval_ms)
-        self.cooldown_spin.setValue(trigger.cooldown_ms)
+        
         self._building = False
         self._on_type_changed()
-        self._on_act_changed()
-
-    def _refresh_macro_combo(self):
-        self.macro_combo.clear()
-        if self.project:
-            for m in self.project.macros:
-                self.macro_combo.addItem(m.name, m.id)
-        if self.trigger:
-            mid = self.trigger.action_params.get('macro_id', '')
-            idx = self.macro_combo.findData(mid)
-            self.macro_combo.setCurrentIndex(max(0, idx))
 
     # ──────────────────────────────────────────── Helpers
     def _set(self, attr: str, value):
@@ -278,19 +219,6 @@ class TriggerEditorPanel(QWidget):
         self.thr_val_lbl.setText(f'{val:.2f}')
         if not self._building:
             self._set('threshold', val)
-
-    def _on_act_changed(self):
-        t = self.act_combo.currentData()
-        self.macro_combo.setVisible(t == 'run_macro')
-        self.act_key_edit.setVisible(t == 'key')
-        if not self._building and self.trigger:
-            self.trigger.action_type = t
-            if t == 'run_macro':
-                self.trigger.action_params = {
-                    'macro_id': self.macro_combo.currentData() or ''}
-            elif t == 'key':
-                self.trigger.action_params = {'key': self.act_key_edit.text()}
-            self.changed.emit()
 
     # ──────────────────────────────────────────── Region / Template
     def _select_region(self):

@@ -21,12 +21,14 @@ class MacroExecutor(threading.Thread):
     def __init__(
         self,
         sequence: MacroSequence,
+        project=None,
         on_step: Optional[Callable[[int], None]] = None,
         on_done: Optional[Callable[[], None]] = None,
         on_error: Optional[Callable[[str], None]] = None,
     ):
         super().__init__(daemon=True, name='MacroExecutor')
         self.sequence = sequence
+        self.project = project
         self.on_step = on_step
         self.on_done = on_done
         self.on_error = on_error
@@ -78,8 +80,14 @@ class MacroExecutor(threading.Thread):
                     return
                 time.sleep(0.02)
 
-    def _check_condition(self, t: str, p: dict) -> bool:
-        x, y, w, h = p.get('region', (0, 0, 100, 100))
+    def _check_condition(self, trigger_id: str) -> bool:
+        if not self.project:
+            return False
+        trig = next((t for t in self.project.triggers if t.id == trigger_id), None)
+        if not trig or not trig.enabled:
+            return False
+
+        x, y, w, h = trig.region
         if w <= 0 or h <= 0:
             return False
         try:
@@ -87,16 +95,14 @@ class MacroExecutor(threading.Thread):
         except Exception:
             return False
 
-        if 'image' in t:
-            tmpl_path = p.get('template_path', '')
-            tmpl = self._load_template(tmpl_path)
+        if trig.type == 'image':
+            tmpl = self._load_template(trig.template_path)
             if tmpl is not None:
-                threshold = float(p.get('threshold', 0.80))
-                return image_match.find_template(img, tmpl, threshold) is not None
-        elif 'text' in t:
+                return image_match.find_template(img, tmpl, trig.threshold) is not None
+        elif trig.type == 'text':
             text = _ocr.recognize_text_only(img)
-            tgt = str(p.get('target_text', ''))
-            mode = p.get('match_mode', 'contains')
+            tgt = str(trig.target_text)
+            mode = trig.match_mode
             if mode == 'exact':
                 return text.strip() == tgt.strip()
             elif mode == 'contains':
@@ -107,14 +113,18 @@ class MacroExecutor(threading.Thread):
                 nums = re.findall(r'-?\d+\.?\d*', text)
                 if nums:
                     val = float(nums[0])
-                    cmp = p.get('number_cmp', 'lte')
-                    ref_val = float(p.get('number_val', 0.0))
-                    if cmp == 'lte':
+                    cmp = getattr(trig, 'number_cmp', 'lte')
+                    ref_val = float(getattr(trig, 'number_val', 0.0))
+                    if cmp == 'lt':
+                        return val < ref_val
+                    elif cmp == 'lte':
                         return val <= ref_val
-                    elif cmp == 'gte':
-                        return val >= ref_val
                     elif cmp == 'eq':
                         return abs(val - ref_val) < 1e-6
+                    elif cmp == 'gte':
+                        return val >= ref_val
+                    elif cmp == 'gt':
+                        return val > ref_val
         return False
 
     def _random_sleep(self):
@@ -150,24 +160,24 @@ class MacroExecutor(threading.Thread):
                     self._run_slice(actions, i + 1, loop_end_idx)
                     iteration += 1
                 i = j
-            elif a.type in ('if_image', 'if_text'):
+            elif a.type == 'if':
                 # Block branch analysis
                 j = i + 1
                 depth = 1
                 branches = []  # List of tuple (start_idx, end_idx, condition_fn_or_None)
                 current_branch_start = j
-                current_cond = lambda: self._check_condition(a.type, a.params)
+                current_cond = lambda: self._check_condition(a.params.get('trigger_id', ''))
 
                 while j < end and depth > 0:
                     t = actions[j].type
-                    if t in ('if_image', 'if_text'):
+                    if t == 'if':
                         depth += 1
                     elif t == 'end_if':
                         depth -= 1
                         if depth == 0:
                             branches.append((current_branch_start, j, current_cond))
                             break
-                    elif depth == 1 and t in ('elif_image', 'elif_text', 'else_start'):
+                    elif depth == 1 and t in ('elif', 'else_start'):
                         # End current block
                         branches.append((current_branch_start, j, current_cond))
                         current_branch_start = j + 1
@@ -176,7 +186,7 @@ class MacroExecutor(threading.Thread):
                         else:
                             # Capture j and a snapshot of actions[j] for lambda
                             a_elif = actions[j]
-                            current_cond = lambda a_el=a_elif: self._check_condition(a_el.type, a_el.params)
+                            current_cond = lambda a_el=a_elif: self._check_condition(a_el.params.get('trigger_id', ''))
                     j += 1
 
                 # Evaluate execution top-to-bottom
@@ -187,7 +197,7 @@ class MacroExecutor(threading.Thread):
 
                 i = j if depth == 0 else j + 1
                 
-            elif a.type in ('loop_end', 'end_if', 'elif_image', 'elif_text', 'else_start'):
+            elif a.type in ('loop_end', 'end_if', 'elif', 'else_start'):
                 # Should not be hit directly unless unbalanced
                 i += 1
             else:

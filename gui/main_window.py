@@ -193,7 +193,24 @@ class MainWindow(QMainWindow):
         
         lay.addSpacing(16)
 
-        # Navigation Menu removed as everything is in macros now
+        # Navigation Menu
+        nav_lbl = QLabel('工作区')
+        nav_lbl.setObjectName('lbl_sidebar_hdr')
+        lay.addWidget(nav_lbl)
+        
+        self._btn_nav_macro = QPushButton('📦  宏管理')
+        self._btn_nav_macro.setObjectName('btn_nav')
+        self._btn_nav_macro.setCheckable(True)
+        self._btn_nav_macro.setChecked(True)
+        self._btn_nav_macro.clicked.connect(lambda: self._switch_nav(0))
+        
+        self._btn_nav_trig = QPushButton('⚡  条件触发器')
+        self._btn_nav_trig.setObjectName('btn_nav')
+        self._btn_nav_trig.setCheckable(True)
+        self._btn_nav_trig.clicked.connect(lambda: self._switch_nav(1))
+        
+        lay.addWidget(self._btn_nav_macro)
+        lay.addWidget(self._btn_nav_trig)
 
         lay.addStretch()
 
@@ -248,6 +265,8 @@ class MainWindow(QMainWindow):
 
     def _switch_nav(self, idx: int):
         self.stack.setCurrentIndex(idx)
+        self._btn_nav_macro.setChecked(idx == 0)
+        self._btn_nav_trig.setChecked(idx == 1)
 
     def _build_main_area(self) -> QWidget:
         w = QFrame()
@@ -294,7 +313,43 @@ class MainWindow(QMainWindow):
         self.macro_editor.changed.connect(self._on_project_changed)
         m_lay.addWidget(self.macro_editor, 1)
 
+        # Page 1: Trigger Workspace
+        trig_page = QWidget()
+        t_lay = QHBoxLayout(trig_page)
+        t_lay.setContentsMargins(0,0,0,0)
+
+        t_list_cont = QFrame()
+        t_list_cont.setObjectName('glass_card')
+        t_list_cont.setFixedWidth(240)
+        tl_lay = QVBoxLayout(t_list_cont)
+        tl_lay.setContentsMargins(10, 10, 10, 10)
+
+        t_hdr = QHBoxLayout()
+        tl_lbl = QLabel('触发器列表')
+        tl_lbl.setObjectName('lbl_section')
+        t_add = QPushButton('＋', objectName='btn_icon')
+        t_add.setFixedSize(24, 24)
+        t_add.clicked.connect(self._new_trigger)
+        t_del = QPushButton('－', objectName='btn_icon')
+        t_del.setFixedSize(24, 24)
+        t_del.clicked.connect(self._delete_trigger)
+        t_hdr.addWidget(tl_lbl, 1)
+        t_hdr.addWidget(t_add)
+        t_hdr.addWidget(t_del)
+        tl_lay.addLayout(t_hdr)
+
+        self.trigger_list = QListWidget()
+        self.trigger_list.currentRowChanged.connect(self._on_trigger_selected)
+        tl_lay.addWidget(self.trigger_list, 1)
+
+        t_lay.addWidget(t_list_cont)
+
+        self.trigger_editor = TriggerEditorPanel()
+        self.trigger_editor.changed.connect(self._on_project_changed)
+        t_lay.addWidget(self.trigger_editor, 1)
+
         self.stack.addWidget(macro_page)
+        self.stack.addWidget(trig_page)
         outer.addWidget(self.stack, 1)
 
         # Log Panel
@@ -370,6 +425,7 @@ class MainWindow(QMainWindow):
             return
         self.trigger_list.clearSelection()
         seq = self.project.macros[row]
+        self.macro_editor.project = self.project
         self.macro_editor.load_sequence(seq)
 
 
@@ -556,6 +612,7 @@ class MainWindow(QMainWindow):
 
         self._executor = MacroExecutor(
             seq,
+            project=self.project,
             on_step=lambda i: self._bridge.step_changed.emit(i),
             on_done=done_handler,
             on_error=err_handler,

@@ -28,16 +28,15 @@ class ActionDialog(QDialog):
         ('delay',        '⏱  等待延时'),
         ('loop_start',   '🔁  开始循环'),
         ('loop_end',     '🔚  结束循环'),
-        ('if_image',     '❓  如果出现图像则...'),
-        ('if_text',      '❓  如果出现文字则...'),
-        ('elif_image',   '❔  否则如果出现图像则...'),
-        ('elif_text',    '❔  否则如果出现文字则...'),
+        ('if',           '❓  如果发生触发事件则...'),
+        ('elif',         '❔  否则如果发生触发事件则...'),
         ('else_start',   '⛔  否则...'),
         ('end_if',       '🔚  结束判断'),
     ]
 
-    def __init__(self, action: Optional[Action] = None, parent=None):
+    def __init__(self, action: Optional[Action] = None, parent=None, project=None):
         super().__init__(parent)
+        self.project = project
         self.setWindowTitle('编辑动作')
         self.setMinimumWidth(360)
         self.setModal(True)
@@ -72,13 +71,8 @@ class ActionDialog(QDialog):
         self._val_ms = 500
         self._val_count = 3
         # Condition params
-        self._val_region = (0, 0, 100, 100)
-        self._val_template_path = ''
-        self._val_threshold = 0.80
-        self._val_target_text = ''
-        self._val_match_mode = 'contains'
-        self._val_number_cmp = 'lte'
-        self._val_number_val = 0.0
+        self._val_trigger_id = ''
+        self._val_trigger_name = ''
         
         # External dialogs
         self._sel = None
@@ -101,13 +95,8 @@ class ActionDialog(QDialog):
             self._val_key = p.get('key', '')
             self._val_ms = p.get('ms', 500)
             self._val_count = p.get('count', 3)
-            self._val_region = p.get('region', (0, 0, 100, 100))
-            self._val_template_path = p.get('template_path', '')
-            self._val_threshold = p.get('threshold', 0.80)
-            self._val_target_text = p.get('target_text', '')
-            self._val_match_mode = p.get('match_mode', 'contains')
-            self._val_number_cmp = p.get('number_cmp', 'lte')
-            self._val_number_val = p.get('number_val', 0.0)
+            self._val_trigger_id = p.get('trigger_id', '')
+            self._val_trigger_name = p.get('trigger_name', '')
         else:
             self.type_combo.setCurrentIndex(0)
 
@@ -140,6 +129,12 @@ class ActionDialog(QDialog):
         if hasattr(self, '_w_count') and self._w_count is not None:
             try:
                 self._val_count = self._w_count.value()
+            except RuntimeError:
+                pass
+        if hasattr(self, '_w_trigger') and self._w_trigger is not None:
+            try:
+                self._val_trigger_id = self._w_trigger.currentData()
+                self._val_trigger_name = self._w_trigger.currentText()
             except RuntimeError:
                 pass
 
@@ -188,65 +183,17 @@ class ActionDialog(QDialog):
             lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
             self.form_layout.addRow(lbl)
             
-        elif t in ('if_image', 'if_text', 'elif_image', 'elif_text'):
-            from .region_selector import RegionSelector
-            from PyQt6.QtWidgets import QDoubleSpinBox, QFileDialog
-            from PyQt6.QtGui import QPixmap
-            
-            # Region
-            self._w_btn_reg = QPushButton('🔲  框选检测区域')
-            self._w_lbl_reg = QLabel(f'{self._val_region}')
-            self._w_btn_reg.clicked.connect(self._select_region)
-            self.form_layout.addRow(self._w_btn_reg, self._w_lbl_reg)
-            
-            if 'image' in t:
-                # Template
-                self._w_btn_tmpl = QPushButton('📁  选择模板')
-                self._w_lbl_tmpl = QLabel(os.path.basename(self._val_template_path) or '未选择')
-                self._w_btn_tmpl.clicked.connect(self._select_template)
-                self.form_layout.addRow(self._w_btn_tmpl, self._w_lbl_tmpl)
-                # Threshold
-                self._w_thr = QDoubleSpinBox()
-                self._w_thr.setRange(0.5, 1.0)
-                self._w_thr.setSingleStep(0.05)
-                self._w_thr.setValue(self._val_threshold)
-                self.form_layout.addRow('相似度阈值:', self._w_thr)
+        elif t in ('if', 'elif'):
+            self._w_trigger = QComboBox()
+            if self.project and getattr(self.project, 'triggers', None):
+                for trig in self.project.triggers:
+                    self._w_trigger.addItem(f'{trig.name}', trig.id)
             else:
-                from PyQt6.QtWidgets import QDoubleSpinBox
-                # Text
-                self._w_txt = QLineEdit()
-                self._w_txt.setText(self._val_target_text)
-                self.form_layout.addRow('目标文字:', self._w_txt)
-                self._w_mode = QComboBox()
-                for mode, lbl in [('contains', '包含'), ('exact', '精确匹配'), ('regex', '正则表达式'), ('number', '数值比较')]:
-                    self._w_mode.addItem(lbl, mode)
-                self._w_mode.setCurrentIndex(max(0, self._w_mode.findData(self._val_match_mode)))
-                self.form_layout.addRow('匹配方式:', self._w_mode)
-                
-                self._w_num_cmp = QComboBox()
-                for cmp_op, lbl in [('lt', '< 小于'), ('lte', '<= 小于等于'), ('eq', '== 等于'), ('gte', '>= 大于等于'), ('gt', '> 大于')]:
-                    self._w_num_cmp.addItem(lbl, cmp_op)
-                self._w_num_cmp.setCurrentIndex(max(0, self._w_num_cmp.findData(self._val_number_cmp)))
-                
-                self._w_num_val = QDoubleSpinBox()
-                self._w_num_val.setRange(-999999, 999999)
-                self._w_num_val.setDecimals(2)
-                self._w_num_val.setValue(self._val_number_val)
-                
-                self._lbl_num_cmp = QLabel('数值判断规则:')
-                self.form_layout.addRow(self._lbl_num_cmp, self._w_num_cmp)
-                self._lbl_num_val = QLabel('比较目标值:')
-                self.form_layout.addRow(self._lbl_num_val, self._w_num_val)
-                
-                def _update_num_visibility():
-                    is_num = self._w_mode.currentData() == 'number'
-                    self._lbl_num_cmp.setVisible(is_num)
-                    self._w_num_cmp.setVisible(is_num)
-                    self._lbl_num_val.setVisible(is_num)
-                    self._w_num_val.setVisible(is_num)
-                    
-                self._w_mode.currentIndexChanged.connect(_update_num_visibility)
-                _update_num_visibility()
+                self._w_trigger.addItem('未加载工作空间/无触发器', '')
+            
+            idx = self._w_trigger.findData(self._val_trigger_id)
+            self._w_trigger.setCurrentIndex(max(0, idx))
+            self.form_layout.addRow('选择触发事件:', self._w_trigger)
 
     def _select_region(self):
         self._sync_values_from_widgets()
@@ -294,29 +241,14 @@ class ActionDialog(QDialog):
             params = {'ms': self._val_ms}
         elif t == 'loop_start':
             params = {'count': self._val_count}
-        elif t in ('if_image', 'if_text', 'elif_image', 'elif_text'):
-            if 'image' in t:
-                if hasattr(self, '_w_thr'):
-                    self._val_threshold = self._w_thr.value()
-            elif 'text' in t:
-                if hasattr(self, '_w_txt'):
-                    self._val_target_text = self._w_txt.text()
-                    self._val_match_mode = self._w_mode.currentData()
-                    if hasattr(self, '_w_num_cmp'):
-                        self._val_number_cmp = self._w_num_cmp.currentData()
-                        self._val_number_val = self._w_num_val.value()
-                    
+        elif t in ('if', 'elif'):
+            if hasattr(self, '_w_trigger') and self._w_trigger is not None:
+                self._val_trigger_id = self._w_trigger.currentData()
+                self._val_trigger_name = self._w_trigger.currentText()
             params = {
-                'region': self._val_region,
+                'trigger_id': self._val_trigger_id,
+                'trigger_name': self._val_trigger_name
             }
-            if 'image' in t:
-                params['template_path'] = self._val_template_path
-                params['threshold'] = self._val_threshold
-            else:
-                params['target_text'] = self._val_target_text
-                params['match_mode'] = self._val_match_mode
-                params['number_cmp'] = self._val_number_cmp
-                params['number_val'] = self._val_number_val
         return Action(type=t, params=params)
 
 
@@ -438,7 +370,7 @@ class MacroEditorPanel(QWidget):
             return ''
         depth = 0
         for i, a in enumerate(self.sequence.actions[:index]):
-            if a.type in ('loop_start', 'if_image', 'if_text'):
+            if a.type in ('loop_start', 'if'):
                 depth += 1
             elif a.type in ('loop_end', 'end_if'):
                 depth = max(0, depth - 1)
@@ -446,7 +378,7 @@ class MacroEditorPanel(QWidget):
         # Adjust depth backwards for lines that *are* elif/else themselves
         # so they align with their parent IF block in the list
         current_a = self.sequence.actions[index]
-        if current_a.type in ('loop_end', 'elif_image', 'elif_text', 'else_start', 'end_if'):
+        if current_a.type in ('loop_end', 'elif', 'else_start', 'end_if'):
             depth = max(0, depth - 1)
             
         return '    ' * depth
@@ -487,7 +419,7 @@ class MacroEditorPanel(QWidget):
     def _add_action(self):
         if not self.sequence:
             return
-        dlg = ActionDialog(parent=self)
+        dlg = ActionDialog(parent=self, project=getattr(self, 'project', None))
         if dlg.exec() == QDialog.DialogCode.Accepted:
             action = dlg.get_action()
             idx = self._selected_index()
@@ -504,7 +436,7 @@ class MacroEditorPanel(QWidget):
         idx = self._selected_index()
         if idx < 0:
             return
-        dlg = ActionDialog(action=self.sequence.actions[idx], parent=self)
+        dlg = ActionDialog(action=self.sequence.actions[idx], parent=self, project=getattr(self, 'project', None))
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.sequence.actions[idx] = dlg.get_action()
             self._refresh_list()
