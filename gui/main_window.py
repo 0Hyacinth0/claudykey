@@ -157,32 +157,7 @@ class MainWindow(QMainWindow):
         lay.addWidget(logo)
         lay.addSpacing(16)
 
-        # Mode Selector
-        mode_lay = QHBoxLayout()
-        mode_lay.setSpacing(0)
-        self._btn_mode_loop = QPushButton('🔁循环')
-        self._btn_mode_cond = QPushButton('🔍条件')
-        self._btn_mode_loop.setCheckable(True)
-        self._btn_mode_cond.setCheckable(True)
-        
-        self._btn_mode_loop.setStyleSheet('QPushButton { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; } QPushButton:checked { background: rgba(255,255,255,0.65); color: #c94080; border-color: rgba(255,255,255,0.6); }')
-        self._btn_mode_cond.setStyleSheet('QPushButton { border-top-left-radius: 0; border-bottom-left-radius: 0; } QPushButton:checked { background: rgba(255,255,255,0.65); color: #c94080; border-color: rgba(255,255,255,0.6); }')
-        
-        self._btn_mode_loop.clicked.connect(lambda: self._set_mode('loop'))
-        self._btn_mode_cond.clicked.connect(lambda: self._set_mode('conditional'))
-        mode_lay.addWidget(self._btn_mode_loop)
-        mode_lay.addWidget(self._btn_mode_cond)
-        
-        # Wrapped mode lay in group
-        frm_mode = QFrame()
-        frm_mode.setObjectName('sidebar_group')
-        ll = QVBoxLayout(frm_mode)
-        ll.setContentsMargins(0,0,0,0)
-        mode_lbl = QLabel('运行模式')
-        mode_lbl.setObjectName('lbl_sidebar_hdr')
-        ll.addWidget(mode_lbl)
-        ll.addLayout(mode_lay)
-        lay.addWidget(frm_mode)
+        # (Mode selector removed as condition mode is merged)
 
         # Settings
         frm_set = QFrame()
@@ -215,24 +190,7 @@ class MainWindow(QMainWindow):
         
         lay.addSpacing(16)
 
-        # Navigation Menu
-        nav_lbl = QLabel('工作区')
-        nav_lbl.setObjectName('lbl_sidebar_hdr')
-        lay.addWidget(nav_lbl)
-        
-        self._btn_nav_macro = QPushButton('📦  宏管理')
-        self._btn_nav_macro.setObjectName('btn_nav')
-        self._btn_nav_macro.setCheckable(True)
-        self._btn_nav_macro.setChecked(True)
-        self._btn_nav_macro.clicked.connect(lambda: self._switch_nav(0))
-        
-        self._btn_nav_trig = QPushButton('⚡  条件触发器')
-        self._btn_nav_trig.setObjectName('btn_nav')
-        self._btn_nav_trig.setCheckable(True)
-        self._btn_nav_trig.clicked.connect(lambda: self._switch_nav(1))
-        
-        lay.addWidget(self._btn_nav_macro)
-        lay.addWidget(self._btn_nav_trig)
+        # Navigation Menu removed as everything is in macros now
 
         lay.addStretch()
 
@@ -280,8 +238,6 @@ class MainWindow(QMainWindow):
 
     def _switch_nav(self, idx: int):
         self.stack.setCurrentIndex(idx)
-        self._btn_nav_macro.setChecked(idx == 0)
-        self._btn_nav_trig.setChecked(idx == 1)
 
     def _build_main_area(self) -> QWidget:
         w = QFrame()
@@ -328,43 +284,7 @@ class MainWindow(QMainWindow):
         self.macro_editor.changed.connect(self._on_project_changed)
         m_lay.addWidget(self.macro_editor, 1)
 
-        # Page 1: Trigger Workspace
-        trig_page = QWidget()
-        t_lay = QHBoxLayout(trig_page)
-        t_lay.setContentsMargins(0,0,0,0)
-
-        t_list_cont = QFrame()
-        t_list_cont.setObjectName('glass_card')
-        t_list_cont.setFixedWidth(240)
-        tl_lay = QVBoxLayout(t_list_cont)
-        tl_lay.setContentsMargins(10, 10, 10, 10)
-
-        t_hdr = QHBoxLayout()
-        tl_lbl = QLabel('触发器列表')
-        tl_lbl.setObjectName('lbl_section')
-        t_add = QPushButton('＋', objectName='btn_icon')
-        t_add.setFixedSize(24, 24)
-        t_add.clicked.connect(self._new_trigger)
-        t_del = QPushButton('－', objectName='btn_icon')
-        t_del.setFixedSize(24, 24)
-        t_del.clicked.connect(self._delete_trigger)
-        t_hdr.addWidget(tl_lbl, 1)
-        t_hdr.addWidget(t_add)
-        t_hdr.addWidget(t_del)
-        tl_lay.addLayout(t_hdr)
-
-        self.trigger_list = QListWidget()
-        self.trigger_list.currentRowChanged.connect(self._on_trigger_selected)
-        tl_lay.addWidget(self.trigger_list, 1)
-
-        t_lay.addWidget(t_list_cont)
-
-        self.trigger_editor = TriggerEditorPanel()
-        self.trigger_editor.changed.connect(self._on_project_changed)
-        t_lay.addWidget(self.trigger_editor, 1)
-
         self.stack.addWidget(macro_page)
-        self.stack.addWidget(trig_page)
         outer.addWidget(self.stack, 1)
 
         # Log Panel
@@ -571,30 +491,9 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, '加载失败', str(e))
 
-    def _set_mode(self, mode: str):
-        if self._running:
-            return
-        self.project.mode = mode
-        self._update_ui_for_mode()
-        self._on_project_changed()
-
     def _update_ui_for_mode(self):
-        m = self.project.mode
-        self._btn_mode_loop.setChecked(m == 'loop')
-        self._btn_mode_cond.setChecked(m == 'conditional')
-        
-        # Toggle trigger navigation button visibility
-        self._btn_nav_trig.setVisible(m == 'conditional')
-            
-        if m == 'loop':
-            self._btn_run.setText('▶  开始循环')
-            self._btn_stop.setText('■  停止循环')
-            # If we were on trigger page, go back to macro page
-            if self.stack.currentIndex() == 1:
-                self._switch_nav(0)
-        else:
-            self._btn_run.setText('🔍  开始巡检')
-            self._btn_stop.setText('■  停止巡检')
+        self._btn_run.setText('▶  运行当前宏')
+        self._btn_stop.setText('■  停止运行')
 
     # ══════════════════════════════════════════════════════════════
     #  Run / Stop
@@ -615,33 +514,21 @@ class MainWindow(QMainWindow):
         self._btn_stop.setEnabled(True)
         self._set_status('运行中…', 'run')
 
-        if self.project.mode == 'conditional':
-            enabled = [t for t in self.project.triggers if t.enabled]
-            if enabled:
-                self._append_log(f'开始巡检，共 {len(enabled)} 个触发器启用')
-                self._trigger_engine = TriggerEngine(
-                    enabled, self._on_trigger_fired_bg)
-                self._trigger_engine.start()
-            else:
-                self._set_status('条件模式下没有启用的触发器', 'err')
-                self._stop_all()
+        seq = None
+        row = self.macro_list.currentRow()
+        if 0 <= row < len(self.project.macros):
+            seq = self.project.macros[row]
+        elif getattr(self.macro_editor, 'sequence', None) and self.macro_editor.sequence in self.project.macros:
+            seq = self.macro_editor.sequence
+        elif self.project.macros:
+            seq = self.project.macros[0]
+            
+        if seq:
+            self._append_log(f'开始运行: {seq.name}')
+            self._run_macro(seq)
         else:
-            # Loop mode: run exactly the chosen macro
-            seq = None
-            row = self.macro_list.currentRow()
-            if 0 <= row < len(self.project.macros):
-                seq = self.project.macros[row]
-            elif getattr(self.macro_editor, 'sequence', None) and self.macro_editor.sequence in self.project.macros:
-                seq = self.macro_editor.sequence
-            elif self.project.macros:
-                seq = self.project.macros[0]
-                
-            if seq:
-                self._append_log(f'循环模式启动: {seq.name}')
-                self._run_macro(seq)
-            else:
-                self._set_status('没有要运行的宏', 'err')
-                self._stop_all()
+            self._set_status('没有要运行的宏', 'err')
+            self._stop_all()
 
     def _run_macro(self, seq, on_done_extra=None):
         if self._executor and self._executor.is_alive():
@@ -684,23 +571,13 @@ class MainWindow(QMainWindow):
         self.macro_editor.highlight_step(idx)
 
     def _on_macro_done(self):
-        # In conditional mode the TriggerEngine drives execution;
-        # we should NOT reset the running state — the engine keeps going.
-        in_conditional = (self.project.mode == 'conditional'
-                          and self._trigger_engine is not None
-                          and self._trigger_engine.is_alive())
-        if in_conditional:
-            self._append_log('宏执行完毕 — 继续巡检...')
-            self._set_status('宏完成，巡检中…', 'run')
-            self.macro_editor.clear_highlight()
-        else:
-            self._append_log('宏执行完毕')
-            if self._running:
-                self._set_status('宏执行完毕', 'ok')
-            self._running = False
-            self._btn_run.setEnabled(True)
-            self._btn_stop.setEnabled(False)
-            self.macro_editor.clear_highlight()
+        self._append_log('宏执行完毕')
+        if self._running:
+            self._set_status('宏执行完毕', 'ok')
+        self._running = False
+        self._btn_run.setEnabled(True)
+        self._btn_stop.setEnabled(False)
+        self.macro_editor.clear_highlight()
 
     def _on_macro_error(self, msg: str):
         self._append_log(f'[ERROR] {msg}')

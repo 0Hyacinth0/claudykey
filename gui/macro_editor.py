@@ -212,6 +212,7 @@ class ActionDialog(QDialog):
                 self._w_thr.setValue(self._val_threshold)
                 self.form_layout.addRow('相似度阈值:', self._w_thr)
             else:
+                from PyQt6.QtWidgets import QDoubleSpinBox
                 # Text
                 self._w_txt = QLineEdit()
                 self._w_txt.setText(self._val_target_text)
@@ -221,6 +222,31 @@ class ActionDialog(QDialog):
                     self._w_mode.addItem(lbl, mode)
                 self._w_mode.setCurrentIndex(max(0, self._w_mode.findData(self._val_match_mode)))
                 self.form_layout.addRow('匹配方式:', self._w_mode)
+                
+                self._w_num_cmp = QComboBox()
+                for cmp_op, lbl in [('lt', '< 小于'), ('lte', '<= 小于等于'), ('eq', '== 等于'), ('gte', '>= 大于等于'), ('gt', '> 大于')]:
+                    self._w_num_cmp.addItem(lbl, cmp_op)
+                self._w_num_cmp.setCurrentIndex(max(0, self._w_num_cmp.findData(self._val_number_cmp)))
+                
+                self._w_num_val = QDoubleSpinBox()
+                self._w_num_val.setRange(-999999, 999999)
+                self._w_num_val.setDecimals(2)
+                self._w_num_val.setValue(self._val_number_val)
+                
+                self._lbl_num_cmp = QLabel('数值判断规则:')
+                self.form_layout.addRow(self._lbl_num_cmp, self._w_num_cmp)
+                self._lbl_num_val = QLabel('比较目标值:')
+                self.form_layout.addRow(self._lbl_num_val, self._w_num_val)
+                
+                def _update_num_visibility():
+                    is_num = self._w_mode.currentData() == 'number'
+                    self._lbl_num_cmp.setVisible(is_num)
+                    self._w_num_cmp.setVisible(is_num)
+                    self._lbl_num_val.setVisible(is_num)
+                    self._w_num_val.setVisible(is_num)
+                    
+                self._w_mode.currentIndexChanged.connect(_update_num_visibility)
+                _update_num_visibility()
 
     def _select_region(self):
         self._sync_values_from_widgets()
@@ -276,6 +302,9 @@ class ActionDialog(QDialog):
                 if hasattr(self, '_w_txt'):
                     self._val_target_text = self._w_txt.text()
                     self._val_match_mode = self._w_mode.currentData()
+                    if hasattr(self, '_w_num_cmp'):
+                        self._val_number_cmp = self._w_num_cmp.currentData()
+                        self._val_number_val = self._w_num_val.value()
                     
             params = {
                 'region': self._val_region,
