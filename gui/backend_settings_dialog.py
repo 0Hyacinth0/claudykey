@@ -54,7 +54,10 @@ class DriverInstallerThread(QThread):
                 subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'interception-python'])
 
                 self.log.emit('正在下载 Interception 驱动包...')
-                temp_dir = tempfile.mkdtemp()
+                here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                target_dir = os.path.join(here, 'drivers', 'InterceptionInstaller')
+                os.makedirs(target_dir, exist_ok=True)
+                temp_dir = target_dir
                 zip_path = os.path.join(temp_dir, 'Interception.zip')
                 
                 with urllib.request.urlopen(INT_URL, context=ctx) as response, open(zip_path, 'wb') as out_file:
