@@ -72,9 +72,20 @@ class DriverInstallerThread(QThread):
                 self.log.emit('准备运行内核安装程序（需要管理员权限）...')
                 if sys.platform == 'win32':
                     import ctypes
-                    # runas triggers UAC prompt. Use cmd /k so the window stays open to read errors/success
-                    cmd_args = f'/c "{installer_path}" /install & pause'
-                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", cmd_args, None, 1)
+                    
+                    # Create a wrapper batch file so we can pause and see the output
+                    bat_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install_wrapper.bat')
+                    with open(bat_path, 'w', encoding='utf-8') as f:
+                        f.write('@echo off\n')
+                        f.write('cd /d "%~dp0"\n')
+                        f.write('echo 正在安装 Interception 内核驱动...\n')
+                        f.write('install-interception.exe /install\n')
+                        f.write('echo.\n')
+                        f.write('echo 安装完成（如果上方没有报错，说明成功）。操作完毕后必须重启电脑生效！\n')
+                        f.write('pause\n')
+                        
+                    # runas triggers UAC prompt and executes the batch file
+                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", bat_path, "", None, 1)
                     if int(ret) <= 32:
                         raise RuntimeError(f'ShellExecute failed with code: {ret}')
                 else:
