@@ -153,7 +153,7 @@ class BackendSettingsDialog(QDialog):
 
     # ── DD tab ──────────────────────────────────────────────────────
     def _build_dd_tab(self) -> QWidget:
-        from core.backends.dd_backend import _get_default_dll_path, _load_dll
+        from core.backends.dd_backend import _get_default_dll_path
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.setAlignment(Qt.AlignmentFlag.AlignTop)
@@ -209,7 +209,7 @@ class BackendSettingsDialog(QDialog):
             self._dd_path_edit.setText(path)
 
     def _check_dd(self):
-        from core.backends.dd_backend import _load_dll
+        from core.backends.dd_backend import DDBackend
         path = self._dd_path_edit.text().strip()
         if not path:
             self._dd_status.setText('⚠ 未指定DLL路径')
@@ -219,12 +219,13 @@ class BackendSettingsDialog(QDialog):
             self._dd_status.setText('❌ 文件不存在')
             self._dd_status.setStyleSheet('color:#d94141;')
             return
-        dll = _load_dll(path)
-        if dll:
+        
+        # Test loading the backend
+        test_backend = DDBackend(dll_path=path)
+        
+        if test_backend._dll:
             self._dd_status.setText('✅ 驱动可用')
             self._dd_status.setStyleSheet('color:#1fa357; font-weight:bold;')
-            from core.backends import dd_backend
-            dd_backend._dll_path_cache = ''
             from core import input_backend as _ib
             if _ib.get_active_name() == 'dd':
                 _ib.set_backend('dd', dll_path=path)
