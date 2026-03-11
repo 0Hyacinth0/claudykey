@@ -81,12 +81,20 @@ class DriverInstallerThread(QThread):
                     with open(bat_path, 'w', encoding='utf-8') as f:
                         f.write('@echo off\n')
                         f.write('setlocal enableextensions\n')
-                        f.write('cd /d "%~dp0"\n')
+                        f.write('set "TARGET_DIR=%SystemDrive%\\InterceptionInstaller"\n')
+                        f.write('echo 正在复制安装文件到系统盘 (解决跨盘符找不到 System32 的问题)...\n')
+                        f.write('if exist "%TARGET_DIR%" rmdir /s /q "%TARGET_DIR%"\n')
+                        f.write('mkdir "%TARGET_DIR%"\n')
+                        f.write('xcopy /E /I /Y /Q "%~dp0..\\*" "%TARGET_DIR%" >nul\n')
+                        f.write('cd /d "%TARGET_DIR%\\command line installer"\n')
                         f.write('echo 当前工作目录: %CD%\n')
                         f.write('echo 正在安装 Interception 内核驱动...\n')
-                        f.write('"%~dp0install-interception.exe" /install\n')
+                        f.write('install-interception.exe /install\n')
                         f.write('echo.\n')
                         f.write('echo 安装完成（如果上方没有报错，说明成功）。操作完毕后必须重启电脑生效！\n')
+                        f.write('echo 正在清理系统盘临时文件...\n')
+                        f.write('cd /d "%SystemDrive%\\"\n')
+                        f.write('rmdir /s /q "%TARGET_DIR%"\n')
                         f.write('pause\n')
                         
                     # runas triggers UAC prompt and executes the batch file
