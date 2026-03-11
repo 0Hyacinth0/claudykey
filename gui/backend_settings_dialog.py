@@ -76,29 +76,46 @@ class DriverInstallerThread(QThread):
                 if sys.platform == 'win32':
                     import ctypes
                     
-                    # Create a wrapper batch file so we can pause and see the output
-                    bat_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install_wrapper.bat')
-                    with open(bat_path, 'w', encoding='utf-8') as f:
-                        f.write('@echo off\n')
-                        f.write('setlocal enableextensions\n')
-                        f.write('set "TARGET_DIR=%SystemDrive%\\InterceptionInstaller"\n')
-                        f.write('echo 正在复制安装文件到系统盘 (解决跨盘符找不到 System32 的问题)...\n')
-                        f.write('if exist "%TARGET_DIR%" rmdir /s /q "%TARGET_DIR%"\n')
-                        f.write('mkdir "%TARGET_DIR%"\n')
-                        f.write('xcopy /E /I /Y /Q "%~dp0..\\*" "%TARGET_DIR%" >nul\n')
-                        f.write('cd /d "%TARGET_DIR%\\command line installer"\n')
-                        f.write('echo 当前工作目录: %CD%\n')
-                        f.write('echo 正在安装 Interception 内核驱动...\n')
-                        f.write('install-interception.exe /install\n')
-                        f.write('echo.\n')
-                        f.write('echo 安装完成（如果上方没有报错，说明成功）。操作完毕后必须重启电脑生效！\n')
-                        f.write('echo 正在清理系统盘临时文件...\n')
-                        f.write('cd /d "%SystemDrive%\\"\n')
-                        f.write('rmdir /s /q "%TARGET_DIR%"\n')
-                        f.write('pause\n')
+                    # Create a PowerShell wrapper to resolve the "windir" bug
+                    ps_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install_wrapper.ps1')
+                    with open(ps_path, 'w', encoding='utf-8') as f:
+                        f.write(r'''
+$ErrorActionPreference = "Stop"
+# Some systems have a broken windir resolution for older legacy installers
+$env:windir = "C:\Windows"
+$TargetDir = "$env:SystemDrive\InterceptionInstaller"
+
+Write-Host "正在准备驱动文件..." -ForegroundColor Cyan
+if (Test-Path -Path $TargetDir) {
+    Remove-Item -Path $TargetDir -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+Copy-Item -Path "$PSScriptRoot\..\*" -Destination $TargetDir -Recurse -Force
+
+Write-Host "切换到工作目录..." -ForegroundColor Cyan
+Set-Location -Path "$TargetDir\command line installer"
+Write-Host "当前路径: $((Get-Location).Path)"
+
+Write-Host "正在安装 Interception 内核驱动..." -ForegroundColor Yellow
+Start-Process -Wait -NoNewWindow -FilePath ".\install-interception.exe" -ArgumentList "/install"
+
+Write-Host ""
+Write-Host "==============================================" -ForegroundColor Green
+Write-Host "安装完成（如果上方没有报错，说明成功）。" -ForegroundColor Green
+Write-Host "注意：操作完毕后必须重启电脑才能生效！" -ForegroundColor Red
+Write-Host "==============================================" -ForegroundColor Green
+Write-Host ""
+Write-Host "正在清理临时文件..." -ForegroundColor Cyan
+Set-Location -Path $env:SystemDrive\
+Remove-Item -Path $TargetDir -Recurse -Force
+
+Write-Host "按任意键退出..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+''')
                         
-                    # runas triggers UAC prompt and executes the batch file
-                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", bat_path, "", None, 1)
+                    # runas triggers UAC prompt and executes the PowerShell script
+                    ps_args = f'-ExecutionPolicy Bypass -File "{ps_path}"'
+                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", ps_args, None, 1)
                     if int(ret) <= 32:
                         raise RuntimeError(f'ShellExecute failed with code: {ret}')
                 else:
