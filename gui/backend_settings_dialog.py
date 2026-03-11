@@ -72,56 +72,9 @@ class DriverInstallerThread(QThread):
                 installer_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install-interception.exe')
                 installer_path = os.path.abspath(installer_path)
                 
-                self.log.emit('准备运行内核安装程序（需要管理员权限）...')
-                if sys.platform == 'win32':
-                    import ctypes
-                    
-                    # Create a PowerShell wrapper to resolve the "windir" bug
-                    ps_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install_wrapper.ps1')
-                    with open(ps_path, 'w', encoding='utf-8') as f:
-                        f.write(r'''
-$ErrorActionPreference = "Stop"
-# Some systems have a broken windir resolution for older legacy installers
-$env:windir = "C:\Windows"
-$TargetDir = "$env:SystemDrive\InterceptionInstaller"
-
-Write-Host "正在准备驱动文件..." -ForegroundColor Cyan
-if (Test-Path -Path $TargetDir) {
-    Remove-Item -Path $TargetDir -Recurse -Force
-}
-New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
-Copy-Item -Path "$PSScriptRoot\..\*" -Destination $TargetDir -Recurse -Force
-
-Write-Host "切换到工作目录..." -ForegroundColor Cyan
-Set-Location -Path "$TargetDir\command line installer"
-Write-Host "当前路径: $((Get-Location).Path)"
-
-Write-Host "正在安装 Interception 内核驱动..." -ForegroundColor Yellow
-Start-Process -Wait -NoNewWindow -FilePath ".\install-interception.exe" -ArgumentList "/install"
-
-Write-Host ""
-Write-Host "==============================================" -ForegroundColor Green
-Write-Host "安装完成（如果上方没有报错，说明成功）。" -ForegroundColor Green
-Write-Host "注意：操作完毕后必须重启电脑才能生效！" -ForegroundColor Red
-Write-Host "==============================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "正在清理临时文件..." -ForegroundColor Cyan
-Set-Location -Path $env:SystemDrive\
-Remove-Item -Path $TargetDir -Recurse -Force
-
-Write-Host "按任意键退出..."
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-''')
-                        
-                    # runas triggers UAC prompt and executes the PowerShell script
-                    ps_args = f'-ExecutionPolicy Bypass -File "{ps_path}"'
-                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", ps_args, None, 1)
-                    if int(ret) <= 32:
-                        raise RuntimeError(f'ShellExecute failed with code: {ret}')
-                else:
-                    self.log.emit('警告: 当前不是 Windows 系统，跳过驱动安装。')
-                
-                self.finished.emit(True, 'Interception 安装程序已唤起，请确认 UAC 弹窗并重启电脑生效。')
+                # instead of trying to automate the buggy older exe via shell, we just open the folder
+                # and explicitly instruct the user how to install it locally.
+                self.finished.emit(True, f'{os.path.join(temp_dir, "Interception", "command line installer")}')
 
         except Exception as e:
             self.log.emit(f'发生错误: {e}')
