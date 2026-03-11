@@ -67,6 +67,7 @@ class DriverInstallerThread(QThread):
                 # Default interception zip structure: 
                 # Interception/command line installer/install-interception.exe
                 installer_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install-interception.exe')
+                installer_path = os.path.abspath(installer_path)
                 
                 self.log.emit('准备运行内核安装程序（需要管理员权限）...')
                 if sys.platform == 'win32':
