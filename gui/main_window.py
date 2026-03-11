@@ -405,6 +405,7 @@ class MainWindow(QMainWindow):
         elif self.macro_list.count() > 0:
             self.macro_list.setCurrentRow(0)
         self.macro_list.blockSignals(False)
+        self._on_macro_selected(self.macro_list.currentRow())
 
     def _refresh_trigger_list(self):
         old_row = self.trigger_list.currentRow()
@@ -418,7 +419,10 @@ class MainWindow(QMainWindow):
             self.trigger_list.addItem(item)
         if 0 <= old_row < self.trigger_list.count():
             self.trigger_list.setCurrentRow(old_row)
+        elif self.trigger_list.count() > 0:
+            self.trigger_list.setCurrentRow(0)
         self.trigger_list.blockSignals(False)
+        self._on_trigger_selected(self.trigger_list.currentRow())
 
     def _on_macro_selected(self, row: int):
         if row < 0 or row >= len(self.project.macros):
