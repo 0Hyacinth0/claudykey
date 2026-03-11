@@ -105,13 +105,24 @@ class DDBackend(InputBackend):
                 if hasattr(self._dll, 'DD_key'):
                     self._dll_mode = 'custom'
                 
-                # Initialize driver (Must return 1 on success for pydd driver)
-                res = self._dll.DD_btn(0)
-                if res != 1 and self._dll_mode == 'custom':
-                    print("Warning: DD_btn(0) did not return 1 (driver initialization issue?)")
             except Exception as e:
                 print(f"DDBackend init error: {e}")
                 self._dll = None
+
+    def test_connection(self) -> bool:
+        """Explicitly test communication with the kernel driver. May trigger OS popups if misconfigured."""
+        if not self._dll:
+            return False
+        try:
+            if self._dll_mode == 'custom' and hasattr(self._dll, 'DD_btn'):
+                res = self._dll.DD_btn(0)
+                if res != 1:
+                    print(f"DDBackend test_connection: DD_btn(0) returned {res}")
+                    return False
+            return True
+        except Exception as e:
+            print(f"DDBackend test_connection exception: {e}")
+            return False
 
     @classmethod
     def name(cls) -> str:
