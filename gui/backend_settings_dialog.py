@@ -72,8 +72,9 @@ class DriverInstallerThread(QThread):
                 self.log.emit('准备运行内核安装程序（需要管理员权限）...')
                 if sys.platform == 'win32':
                     import ctypes
-                    # runas triggers UAC prompt
-                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", installer_path, "/install", None, 1)
+                    # runas triggers UAC prompt. Use cmd /k so the window stays open to read errors/success
+                    cmd_args = f'/c "{installer_path}" /install & pause'
+                    ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", cmd_args, None, 1)
                     if int(ret) <= 32:
                         raise RuntimeError(f'ShellExecute failed with code: {ret}')
                 else:
