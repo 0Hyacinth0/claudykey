@@ -103,11 +103,7 @@ class TriggerConfig:
     match_mode: str = 'contains'  # 'contains' | 'exact' | 'regex' | 'number'
     number_cmp: str = 'lte'       # 'lte' | 'gte' | 'eq'
     number_val: float = 0.0
-    # On-trigger action
-    action_type: str = 'run_macro'   # 'run_macro' | 'click' | 'key'
-    action_params: Dict[str, Any] = field(default_factory=dict)
-    check_interval_ms: int = 500
-    cooldown_ms: int = 2000
+    # Trigger interval/cooldown controls were removed as they are unused.
 
     def to_dict(self) -> dict:
         return {
@@ -116,17 +112,13 @@ class TriggerConfig:
             'template_path': self.template_path, 'threshold': self.threshold,
             'target_text': self.target_text, 'match_mode': self.match_mode,
             'number_cmp': self.number_cmp, 'number_val': self.number_val,
-            'action_type': self.action_type, 'action_params': self.action_params,
-            'check_interval_ms': self.check_interval_ms, 'cooldown_ms': self.cooldown_ms,
         }
 
     @staticmethod
     def from_dict(d: dict) -> 'TriggerConfig':
         t = TriggerConfig(id=d['id'], name=d['name'])
         for k in ('enabled', 'type', 'template_path', 'threshold',
-                  'target_text', 'match_mode', 'number_cmp', 'number_val',
-                  'action_type', 'action_params',
-                  'check_interval_ms', 'cooldown_ms'):
+                  'target_text', 'match_mode', 'number_cmp', 'number_val'):
             if k in d:
                 setattr(t, k, d[k])
         t.region = tuple(d.get('region', [0, 0, 200, 100]))

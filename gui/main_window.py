@@ -65,7 +65,6 @@ class HotkeySetDialog(QDialog):
 
 from core.macro import MacroProject, MacroSequence, TriggerConfig
 from core.executor import MacroExecutor
-from core.trigger import TriggerEngine
 from core import input_backend as _ib
 from gui.macro_editor import MacroEditorPanel
 from gui.trigger_editor import TriggerEditorPanel
@@ -78,7 +77,6 @@ class _Bridge(QObject):
     step_changed   = pyqtSignal(int)
     macro_done     = pyqtSignal()
     macro_error    = pyqtSignal(str)
-    trigger_fired  = pyqtSignal(str)   # trigger id
     log            = pyqtSignal(str)   # timestamped log line
 
 
@@ -95,7 +93,6 @@ class MainWindow(QMainWindow):
 
         self.project = MacroProject()
         self._executor: MacroExecutor | None = None
-        self._trigger_engine: TriggerEngine | None = None
         self._bridge = _Bridge()
         self._current_proj_path: str = ''
         self._running = False
@@ -105,7 +102,6 @@ class MainWindow(QMainWindow):
         self._bridge.step_changed.connect(self._on_step)
         self._bridge.macro_done.connect(self._on_macro_done)
         self._bridge.macro_error.connect(self._on_macro_error)
-        self._bridge.trigger_fired.connect(self._on_trigger_fired)
         self._bridge.log.connect(self._append_log)
 
         self._build_ui()
@@ -577,9 +573,6 @@ class MainWindow(QMainWindow):
             self._set_status('没有宏或触发器', 'err')
             return
         # Always clean up any surviving engine from a previous run
-        if self._trigger_engine and self._trigger_engine.is_alive():
-            self._trigger_engine.stop()
-            self._trigger_engine = None
         self._running = True
         self._save_project()  # Auto-save changes before running
         self._btn_run.setEnabled(False)
@@ -628,9 +621,6 @@ class MainWindow(QMainWindow):
         if self._executor:
             self._executor.stop()
             self._executor = None
-        if self._trigger_engine:
-            self._trigger_engine.stop()
-            self._trigger_engine = None
         self._running = False
         self._btn_run.setEnabled(True)
         self._btn_stop.setEnabled(False)
@@ -656,43 +646,6 @@ class MainWindow(QMainWindow):
         self._append_log(f'[ERROR] {msg}')
         self._set_status(f'错误: {msg}', 'err')
         self._stop_all()
-
-    def _on_trigger_fired_bg(self, trigger: TriggerConfig):
-        """Called from TriggerEngine thread."""
-        self._bridge.log.emit(f'触发器命中: [{trigger.name}]')
-        self._bridge.trigger_fired.emit(trigger.id)
-        return self._execute_trigger_action(trigger)
-
-    def _on_trigger_fired(self, tid: str):
-        """Called on GUI thread via bridge."""
-        trig = next((t for t in self.project.triggers if t.id == tid), None)
-        if trig:
-            self._set_status(f'触发: {trig.name}', 'run')
-
-    def _execute_trigger_action(self, trigger: TriggerConfig) -> threading.Event:
-        """Execute the trigger's configured action (called from background thread)."""
-        done_event = threading.Event()
-        if trigger.action_type == 'run_macro':
-            mid = trigger.action_params.get('macro_id', '')
-            seq = next((m for m in self.project.macros if m.id == mid), None)
-            if seq:
-                self._run_macro(seq, on_done_extra=done_event.set)
-            else:
-                done_event.set()
-        elif trigger.action_type == 'click':
-            bk = _ib.get_backend()
-            x = trigger.action_params.get('x', 0)
-            y = trigger.action_params.get('y', 0)
-            bk.mouse_click(x, y, 'left')
-            done_event.set()
-        elif trigger.action_type == 'key':
-            bk = _ib.get_backend()
-            keys = [k.strip().lower() for k in trigger.action_params.get('key', '').split('+')]
-            if keys:
-                bk.combo(keys)
-            done_event.set()
-        return done_event
-
     # ══════════════════════════════════════════════════════════════
     #  Status bar
     # ══════════════════════════════════════════════════════════════
