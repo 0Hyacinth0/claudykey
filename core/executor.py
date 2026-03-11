@@ -9,6 +9,10 @@ from typing import List, Optional, Callable
 
 from .macro import Action, MacroSequence
 from . import input_backend as _ib
+from . import screen as scr
+from . import image_match
+from . import ocr as _ocr
+import re
 
 
 class MacroExecutor(threading.Thread):
@@ -30,6 +34,16 @@ class MacroExecutor(threading.Thread):
 
     def stop(self):
         self._stop.set()
+
+    def _load_template(self, path: str):
+        if not hasattr(self, '_template_cache'):
+            self._template_cache = {}
+        if path not in self._template_cache:
+            try:
+                self._template_cache[path] = image_match.load_template(path)
+            except Exception:
+                self._template_cache[path] = None
+        return self._template_cache[path]
 
     # ------------------------------------------------------------------ helpers
     def _backend(self):
@@ -64,6 +78,45 @@ class MacroExecutor(threading.Thread):
                     return
                 time.sleep(0.02)
 
+    def _check_condition(self, t: str, p: dict) -> bool:
+        x, y, w, h = p.get('region', (0, 0, 100, 100))
+        if w <= 0 or h <= 0:
+            return False
+        try:
+            img = scr.capture_region(x, y, w, h)
+        except Exception:
+            return False
+
+        if 'image' in t:
+            tmpl_path = p.get('template_path', '')
+            tmpl = self._load_template(tmpl_path)
+            if tmpl is not None:
+                threshold = float(p.get('threshold', 0.80))
+                return image_match.find_template(img, tmpl, threshold) is not None
+        elif 'text' in t:
+            text = _ocr.recognize_text_only(img)
+            tgt = str(p.get('target_text', ''))
+            mode = p.get('match_mode', 'contains')
+            if mode == 'exact':
+                return text.strip() == tgt.strip()
+            elif mode == 'contains':
+                return tgt in text
+            elif mode == 'regex':
+                return bool(re.search(tgt, text))
+            elif mode == 'number':
+                nums = re.findall(r'-?\d+\.?\d*', text)
+                if nums:
+                    val = float(nums[0])
+                    cmp = p.get('number_cmp', 'lte')
+                    ref_val = float(p.get('number_val', 0.0))
+                    if cmp == 'lte':
+                        return val <= ref_val
+                    elif cmp == 'gte':
+                        return val >= ref_val
+                    elif cmp == 'eq':
+                        return abs(val - ref_val) < 1e-6
+        return False
+
     def _random_sleep(self):
         lo = self.sequence.random_delay_min_ms
         hi = self.sequence.random_delay_max_ms
@@ -97,7 +150,45 @@ class MacroExecutor(threading.Thread):
                     self._run_slice(actions, i + 1, loop_end_idx)
                     iteration += 1
                 i = j
-            elif a.type == 'loop_end':
+            elif a.type in ('if_image', 'if_text'):
+                # Block branch analysis
+                j = i + 1
+                depth = 1
+                branches = []  # List of tuple (start_idx, end_idx, condition_fn_or_None)
+                current_branch_start = j
+                current_cond = lambda: self._check_condition(a.type, a.params)
+
+                while j < end and depth > 0:
+                    t = actions[j].type
+                    if t in ('if_image', 'if_text'):
+                        depth += 1
+                    elif t == 'end_if':
+                        depth -= 1
+                        if depth == 0:
+                            branches.append((current_branch_start, j, current_cond))
+                            break
+                    elif depth == 1 and t in ('elif_image', 'elif_text', 'else_start'):
+                        # End current block
+                        branches.append((current_branch_start, j, current_cond))
+                        current_branch_start = j + 1
+                        if t == 'else_start':
+                            current_cond = lambda: True
+                        else:
+                            # Capture j and a snapshot of actions[j] for lambda
+                            a_elif = actions[j]
+                            current_cond = lambda a_el=a_elif: self._check_condition(a_el.type, a_el.params)
+                    j += 1
+
+                # Evaluate execution top-to-bottom
+                for b_start, b_end, cond_check in branches:
+                    if cond_check():
+                        self._run_slice(actions, b_start, b_end)
+                        break  # Only run first matching branch
+
+                i = j if depth == 0 else j + 1
+                
+            elif a.type in ('loop_end', 'end_if', 'elif_image', 'elif_text', 'else_start'):
+                # Should not be hit directly unless unbalanced
                 i += 1
             else:
                 if self.on_step:

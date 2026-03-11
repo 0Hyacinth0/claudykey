@@ -18,6 +18,12 @@ class Action:
         'delay': '⏱',
         'loop_start': '🔁',
         'loop_end': '🔚',
+        'if_image': '❓',
+        'if_text': '❓',
+        'elif_image': '❔',
+        'elif_text': '❔',
+        'else_start': '⛔',
+        'end_if': '🔚',
     }
 
     def display_text(self) -> str:
@@ -40,6 +46,18 @@ class Action:
             return f"{icon}  开始循环  {'∞ 次' if c == -1 else f'{c} 次'}"
         elif self.type == 'loop_end':
             return f"{icon}  结束循环"
+        elif self.type == 'if_image':
+            return f"{icon}  如果出现图像则"
+        elif self.type == 'if_text':
+            return f"{icon}  如果出现文字则"
+        elif self.type == 'elif_image':
+            return f"{icon}  否则如果出现图像则"
+        elif self.type == 'elif_text':
+            return f"{icon}  否则如果出现文字则"
+        elif self.type == 'else_start':
+            return f"{icon}  否则"
+        elif self.type == 'end_if':
+            return f"{icon}  结束判断"
         return self.type
 
     def to_dict(self) -> dict:
