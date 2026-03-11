@@ -80,9 +80,11 @@ class DriverInstallerThread(QThread):
                     bat_path = os.path.join(temp_dir, 'Interception', 'command line installer', 'install_wrapper.bat')
                     with open(bat_path, 'w', encoding='utf-8') as f:
                         f.write('@echo off\n')
+                        f.write('setlocal enableextensions\n')
                         f.write('cd /d "%~dp0"\n')
+                        f.write('echo 当前工作目录: %CD%\n')
                         f.write('echo 正在安装 Interception 内核驱动...\n')
-                        f.write('install-interception.exe /install\n')
+                        f.write('"%~dp0install-interception.exe" /install\n')
                         f.write('echo.\n')
                         f.write('echo 安装完成（如果上方没有报错，说明成功）。操作完毕后必须重启电脑生效！\n')
                         f.write('pause\n')
