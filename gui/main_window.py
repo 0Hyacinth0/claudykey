@@ -87,7 +87,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('ClaudyKey — AI 连点器')
+        self.setWindowTitle('ClaudyKey')
         self.resize(1100, 720)
         self.setStyleSheet(THEME_QSS)
 
@@ -140,9 +140,9 @@ class MainWindow(QMainWindow):
         side.setFixedWidth(240)
         
         shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(25)
-        shadow.setColor(QColor(230, 190, 210, 60))
-        shadow.setOffset(0, 4)
+        shadow.setBlurRadius(30)
+        shadow.setColor(QColor(60, 50, 120, 100))
+        shadow.setOffset(0, 6)
         side.setGraphicsEffect(shadow)
         
         lay = QVBoxLayout(side)
@@ -150,7 +150,7 @@ class MainWindow(QMainWindow):
         lay.setSpacing(16)
 
         # Logo
-        logo = QLabel('⌨  ClaudyKey')
+        logo = QLabel('✦  ClaudyKey')
         logo.setFont(QFont('Segoe UI', 18, QFont.Weight.Bold))
         logo.setObjectName('lbl_logo')
         lay.addWidget(logo)
