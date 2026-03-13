@@ -121,9 +121,11 @@ class TriggerEditorPanel(QWidget):
         # ── Number Comparison Config ──
         self.num_cmp_row = QHBoxLayout()
         self.num_cmp_combo = QComboBox()
+        self.num_cmp_combo.addItem('< 小于', 'lt')
         self.num_cmp_combo.addItem('≤ 小于等于', 'lte')
-        self.num_cmp_combo.addItem('≥ 大于等于', 'gte')
         self.num_cmp_combo.addItem('= 等于', 'eq')
+        self.num_cmp_combo.addItem('≥ 大于等于', 'gte')
+        self.num_cmp_combo.addItem('> 大于', 'gt')
         self.num_cmp_combo.currentIndexChanged.connect(
             lambda: self._set('number_cmp', self.num_cmp_combo.currentData()))
         

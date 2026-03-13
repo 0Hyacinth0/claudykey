@@ -12,7 +12,10 @@ from . import input_backend as _ib
 from . import screen as scr
 from . import image_match
 from . import ocr as _ocr
+from .logger import get_logger
 import re
+
+logger = get_logger(__name__)
 
 
 class MacroExecutor(threading.Thread):
@@ -81,51 +84,112 @@ class MacroExecutor(threading.Thread):
                 time.sleep(0.02)
 
     def _check_condition(self, trigger_id: str) -> bool:
+        """检查触发器条件是否满足。
+        
+        Args:
+            trigger_id: 触发器 ID。
+            
+        Returns:
+            如果条件满足返回 True，否则返回 False。
+        """
         if not self.project:
+            logger.warning(f"无法检查条件: project 为空")
             return False
+        
         trig = next((t for t in self.project.triggers if t.id == trigger_id), None)
-        if not trig or not trig.enabled:
+        if not trig:
+            logger.warning(f"触发器不存在: {trigger_id}")
+            return False
+        
+        if not trig.enabled:
+            logger.debug(f"触发器已禁用: {trig.name}")
             return False
 
         x, y, w, h = trig.region
         if w <= 0 or h <= 0:
+            logger.warning(f"触发器 {trig.name} 区域无效: ({x}, {y}) {w}x{h}")
             return False
+        
         try:
             img = scr.capture_region(x, y, w, h)
-        except Exception:
+        except Exception as e:
+            logger.error(f"触发器 {trig.name} 截图失败: {e}")
             return False
 
         if trig.type == 'image':
+            if not trig.template_path:
+                logger.warning(f"触发器 {trig.name} 未设置模板路径")
+                return False
             tmpl = self._load_template(trig.template_path)
-            if tmpl is not None:
-                return image_match.find_template(img, tmpl, trig.threshold) is not None
+            if tmpl is None:
+                logger.warning(f"触发器 {trig.name} 模板加载失败: {trig.template_path}")
+                return False
+            result = image_match.find_template(img, tmpl, trig.threshold)
+            if result is not None:
+                logger.debug(f"触发器 {trig.name} 图像匹配成功，置信度: {result[2]:.3f}")
+                return True
+            return False
+            
         elif trig.type == 'text':
-            text = _ocr.recognize_text_only(img)
+            try:
+                text = _ocr.recognize_text_only(img)
+            except Exception as e:
+                logger.error(f"触发器 {trig.name} OCR 识别失败: {e}")
+                return False
+            
             tgt = str(trig.target_text)
             mode = trig.match_mode
+            
             if mode == 'exact':
-                return text.strip() == tgt.strip()
+                result = text.strip() == tgt.strip()
+                logger.debug(f"触发器 {trig.name} 精确匹配: '{text.strip()}' {'==' if result else '!='} '{tgt.strip()}'")
+                return result
             elif mode == 'contains':
-                return tgt in text
+                result = tgt in text
+                logger.debug(f"触发器 {trig.name} 包含匹配: '{tgt}' {'在' if result else '不在'} '{text}'")
+                return result
             elif mode == 'regex':
-                return bool(re.search(tgt, text))
+                try:
+                    result = bool(re.search(tgt, text))
+                    logger.debug(f"触发器 {trig.name} 正则匹配: /{tgt}/ {'匹配' if result else '不匹配'} '{text}'")
+                    return result
+                except re.error as e:
+                    logger.error(f"触发器 {trig.name} 正则表达式无效: {e}")
+                    return False
             elif mode == 'number':
                 nums = re.findall(r'-?\d+\.?\d*', text)
-                if nums:
+                if not nums:
+                    logger.debug(f"触发器 {trig.name} 未找到数字: '{text}'")
+                    return False
+                try:
                     val = float(nums[0])
-                    cmp = getattr(trig, 'number_cmp', 'lte')
-                    ref_val = float(getattr(trig, 'number_val', 0.0))
-                    if cmp == 'lt':
-                        return val < ref_val
-                    elif cmp == 'lte':
-                        return val <= ref_val
-                    elif cmp == 'eq':
-                        return abs(val - ref_val) < 1e-6
-                    elif cmp == 'gte':
-                        return val >= ref_val
-                    elif cmp == 'gt':
-                        return val > ref_val
-        return False
+                except ValueError:
+                    logger.warning(f"触发器 {trig.name} 数字解析失败: '{nums[0]}'")
+                    return False
+                    
+                cmp = getattr(trig, 'number_cmp', 'lte')
+                ref_val = float(getattr(trig, 'number_val', 0.0))
+                
+                cmp_ops = {
+                    'lt': lambda v, r: v < r,
+                    'lte': lambda v, r: v <= r,
+                    'eq': lambda v, r: abs(v - r) < 1e-6,
+                    'gte': lambda v, r: v >= r,
+                    'gt': lambda v, r: v > r,
+                }
+                
+                cmp_symbols = {'lt': '<', 'lte': '≤', 'eq': '=', 'gte': '≥', 'gt': '>'}
+                
+                if cmp not in cmp_ops:
+                    logger.warning(f"触发器 {trig.name} 未知比较操作符: {cmp}")
+                    return False
+                
+                result = cmp_ops[cmp](val, ref_val)
+                logger.debug(f"触发器 {trig.name} 数值比较: {val} {cmp_symbols.get(cmp, cmp)} {ref_val} = {result}")
+                return result
+        else:
+            logger.warning(f"触发器 {trig.name} 未知类型: {trig.type}")
+            return False
 
     def _random_sleep(self):
         lo = self.sequence.random_delay_min_ms
@@ -161,12 +225,13 @@ class MacroExecutor(threading.Thread):
                     iteration += 1
                 i = j
             elif a.type == 'if':
-                # Block branch analysis
                 j = i + 1
                 depth = 1
-                branches = []  # List of tuple (start_idx, end_idx, condition_fn_or_None)
+                branches = []
                 current_branch_start = j
-                current_cond = lambda: self._check_condition(a.params.get('trigger_id', ''))
+                
+                trigger_id_if = a.params.get('trigger_id', '')
+                current_cond = lambda tid=trigger_id_if: self._check_condition(tid)
 
                 while j < end and depth > 0:
                     t = actions[j].type
@@ -178,22 +243,21 @@ class MacroExecutor(threading.Thread):
                             branches.append((current_branch_start, j, current_cond))
                             break
                     elif depth == 1 and t in ('elif', 'else_start'):
-                        # End current block
                         branches.append((current_branch_start, j, current_cond))
                         current_branch_start = j + 1
                         if t == 'else_start':
                             current_cond = lambda: True
                         else:
-                            # Capture j and a snapshot of actions[j] for lambda
                             a_elif = actions[j]
-                            current_cond = lambda a_el=a_elif: self._check_condition(a_el.params.get('trigger_id', ''))
+                            trigger_id_elif = a_elif.params.get('trigger_id', '')
+                            current_cond = lambda tid=trigger_id_elif: self._check_condition(tid)
                     j += 1
 
-                # Evaluate execution top-to-bottom
                 for b_start, b_end, cond_check in branches:
                     if cond_check():
+                        logger.debug(f"执行分支: actions[{b_start}:{b_end}]")
                         self._run_slice(actions, b_start, b_end)
-                        break  # Only run first matching branch
+                        break
 
                 i = j if depth == 0 else j + 1
                 
