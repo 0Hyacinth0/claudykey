@@ -204,16 +204,18 @@ class TriggerEditorPanel(QWidget):
             self._set('type', t)
             
     def _on_match_mode_changed(self):
+        """匹配模式改变时的处理函数。"""
         m = self.match_combo.currentData()
         is_num = (m == 'number')
         self.txt_edit.setVisible(not is_num)
-        if hasattr(self, 'txt_layout_label_target') and self.txt_layout_label_target:
+        if self.txt_layout_label_target is not None:
             self.txt_layout_label_target.setVisible(not is_num)
-            
+        
         for i in range(self.num_cmp_row.count()):
             w = self.num_cmp_row.itemAt(i).widget()
-            if w: w.setVisible(is_num)
-        if hasattr(self, 'txt_layout_label_num') and self.txt_layout_label_num:
+            if w is not None:
+                w.setVisible(is_num)
+        if self.txt_layout_label_num is not None:
             self.txt_layout_label_num.setVisible(is_num)
 
     def _on_threshold_changed(self, v: int):
