@@ -52,61 +52,59 @@ def _param_text(action: Action) -> str:
 
 
 def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
-    """Build a rich list item widget for an Action — two-line vertical layout."""
+    """Build a rich list item widget for an Action."""
     w = QWidget()
     w.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
-
-    # Outer horizontal: [dot] [vertical: tag / param]
-    outer = QHBoxLayout(w)
-    outer.setContentsMargins(6 + depth * 20, 6, 12, 6)
-    outer.setSpacing(10)
+    lay = QHBoxLayout(w)
+    lay.setContentsMargins(6 + depth * 20, 0, 8, 0)
+    lay.setSpacing(8)
+    lay.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
     # Resolve style
     info = _TAG_STYLES.get(action.type, ('•', '#7c6ef8', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0.3)', '#a5b4fc'))
     label, dot_color, tag_bg, tag_border, tag_fg = info
 
-    # Color dot — centred vertically
+    # Color dot
     dot = QFrame()
     dot.setFixedSize(8, 8)
-    dot.setStyleSheet(f'background:{dot_color}; border-radius:4px;')
-    outer.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
+    dot.setStyleSheet(f'''
+        background: {dot_color};
+        border-radius: 4px;
+        min-width: 8px; max-width: 8px;
+        min-height: 8px; max-height: 8px;
+    ''')
+    lay.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    # Right column: tag row + optional param row
-    col = QVBoxLayout()
-    col.setSpacing(2)
-    col.setContentsMargins(0, 0, 0, 0)
-
-    # Row 1: type tag badge
+    # Type tag — compact single-line capsule
     tag = QLabel(label)
+    tag.setFixedHeight(18)
     tag.setStyleSheet(f'''
         QLabel {{
             background: {tag_bg};
             color: {tag_fg};
             border: 1px solid {tag_border};
             border-radius: 6px;
-            padding: 1px 8px;
-            font-size: 11px;
+            padding: 0px 8px;
+            font-size: 10px;
             font-weight: bold;
         }}
     ''')
-    # Don't fix height — let the text breathe
-    col.addWidget(tag, 0, Qt.AlignmentFlag.AlignLeft)
+    lay.addWidget(tag, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    # Row 2: param text (only if non-empty)
+    # Param text
     pt = _param_text(action)
     if pt:
         param = QLabel(pt)
         param.setStyleSheet('''
             QLabel {
-                color: rgba(200, 205, 232, 0.6);
-                font-size: 11px;
+                color: rgba(200, 205, 232, 0.65);
+                font-size: 12px;
                 background: transparent;
-                padding-left: 2px;
             }
         ''')
-        col.addWidget(param, 0, Qt.AlignmentFlag.AlignLeft)
+        lay.addWidget(param, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    outer.addLayout(col, 1)
+    lay.addStretch()
     return w
 
 
@@ -532,7 +530,7 @@ class MacroEditorPanel(QWidget):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, i)
             widget = _make_action_widget(action, depth)
-            item.setSizeHint(QSize(0, 52))
+            item.setSizeHint(QSize(0, 44))
             self.list.addItem(item)
             self.list.setItemWidget(item, widget)
 
