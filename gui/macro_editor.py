@@ -55,6 +55,7 @@ def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
     """Build a rich list item widget for an Action."""
     w = QWidget()
     w.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
+    w.setFixedHeight(24)
     lay = QHBoxLayout(w)
     lay.setContentsMargins(6 + depth * 20, 0, 8, 0)
     lay.setSpacing(8)
@@ -530,7 +531,6 @@ class MacroEditorPanel(QWidget):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, i)
             widget = _make_action_widget(action, depth)
-            item.setSizeHint(QSize(0, 44))
             self.list.addItem(item)
             self.list.setItemWidget(item, widget)
 
