@@ -529,7 +529,7 @@ class MacroEditorPanel(QWidget):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, i)
             widget = _make_action_widget(action, depth)
-            item.setSizeHint(QSize(0, 36))
+            item.setSizeHint(QSize(0, 44))
             self.list.addItem(item)
             self.list.setItemWidget(item, widget)
 
