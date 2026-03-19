@@ -17,20 +17,21 @@ from .region_selector import PointSelector
 
 # ══════════════════════════════════════════════════════════════
 #  Action type → visual tag mapping
+#    (label, dot_color, tag_bg, tag_border, tag_text_color)
 # ══════════════════════════════════════════════════════════════
-_TAG_MAP = {
-    'click':        ('🖱 点击',     'action_type_tag_mouse', '#3b82f6'),
-    'right_click':  ('🖱 右键',     'action_type_tag_mouse', '#3b82f6'),
-    'double_click': ('🖱 双击',     'action_type_tag_mouse', '#3b82f6'),
-    'move':         ('↗ 移动',     'action_type_tag_mouse', '#3b82f6'),
-    'key':          ('⌨ 按键',     'action_type_tag_key',   '#22c55e'),
-    'delay':        ('⏱ 延时',     'action_type_tag_delay', '#fbbf24'),
-    'loop_start':   ('🔁 循环开始', 'action_type_tag_loop',  '#a855f7'),
-    'loop_end':     ('🔚 循环结束', 'action_type_tag_loop',  '#a855f7'),
-    'if':           ('❓ 如果',     'action_type_tag_cond',  '#06b6d4'),
-    'elif':         ('❔ 否则如果', 'action_type_tag_cond',  '#06b6d4'),
-    'else_start':   ('⛔ 否则',     'action_type_tag_cond',  '#06b6d4'),
-    'end_if':       ('🔚 结束判断', 'action_type_tag_cond',  '#06b6d4'),
+_TAG_STYLES = {
+    'click':        ('🖱 点击',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
+    'right_click':  ('🖱 右键',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
+    'double_click': ('🖱 双击',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
+    'move':         ('↗ 移动',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
+    'key':          ('⌨ 按键',     '#22c55e', 'rgba(34,197,94,0.18)',  'rgba(34,197,94,0.3)',   '#86efac'),
+    'delay':        ('⏱ 延时',     '#fbbf24', 'rgba(251,191,36,0.18)', 'rgba(251,191,36,0.3)',  '#fde68a'),
+    'loop_start':   ('🔁 循环开始', '#a855f7', 'rgba(168,85,247,0.2)',  'rgba(168,85,247,0.3)',  '#d8b4fe'),
+    'loop_end':     ('🔚 循环结束', '#a855f7', 'rgba(168,85,247,0.2)',  'rgba(168,85,247,0.3)',  '#d8b4fe'),
+    'if':           ('❓ 如果',     '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
+    'elif':         ('❔ 否则如果', '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
+    'else_start':   ('⛔ 否则',     '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
+    'end_if':       ('🔚 结束判断', '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
 }
 
 def _param_text(action: Action) -> str:
@@ -53,30 +54,53 @@ def _param_text(action: Action) -> str:
 def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
     """Build a rich list item widget for an Action."""
     w = QWidget()
-    w.setObjectName('action_item_widget')
+    w.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
     lay = QHBoxLayout(w)
-    lay.setContentsMargins(4 + depth * 20, 4, 8, 4)
+    lay.setContentsMargins(6 + depth * 20, 3, 8, 3)
     lay.setSpacing(10)
 
+    # Resolve style
+    info = _TAG_STYLES.get(action.type, ('•', '#7c6ef8', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0.3)', '#a5b4fc'))
+    label, dot_color, tag_bg, tag_border, tag_fg = info
+
     # Color dot
-    tag_info = _TAG_MAP.get(action.type, ('•', 'action_type_tag', '#7c6ef8'))
     dot = QFrame()
-    dot.setObjectName('action_dot')
-    dot.setStyleSheet(f'background: {tag_info[2]};')
     dot.setFixedSize(10, 10)
+    dot.setStyleSheet(f'''
+        background: {dot_color};
+        border-radius: 5px;
+        min-width: 10px; max-width: 10px;
+        min-height: 10px; max-height: 10px;
+    ''')
     lay.addWidget(dot)
 
-    # Type tag
-    tag = QLabel(tag_info[0])
-    tag.setObjectName(tag_info[1])
+    # Type tag (inline style — objectName QSS doesn't work inside QListWidget)
+    tag = QLabel(label)
     tag.setFixedHeight(22)
+    tag.setStyleSheet(f'''
+        QLabel {{
+            background: {tag_bg};
+            color: {tag_fg};
+            border: 1px solid {tag_border};
+            border-radius: 8px;
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }}
+    ''')
     lay.addWidget(tag)
 
     # Param text
     pt = _param_text(action)
     if pt:
         param = QLabel(pt)
-        param.setObjectName('action_param_text')
+        param.setStyleSheet('''
+            QLabel {
+                color: rgba(200, 205, 232, 0.65);
+                font-size: 12px;
+                background: transparent;
+            }
+        ''')
         lay.addWidget(param)
 
     lay.addStretch()

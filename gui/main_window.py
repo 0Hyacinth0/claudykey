@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
         from PyQt6.QtGui import QColor
         side = QFrame()
         side.setObjectName('sidebar')
-        side.setFixedWidth(240)
+        side.setFixedWidth(300)
         
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(30)
