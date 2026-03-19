@@ -289,19 +289,29 @@ class MainWindow(QMainWindow):
         ml_lbl = QLabel('宏列表')
         ml_lbl.setObjectName('lbl_section')
         m_add = QPushButton('＋', objectName='btn_icon')
-        m_add.setFixedSize(24, 24)
+        m_add.setFixedSize(28, 28)
+        m_add.setToolTip('新建宏')
         m_add.clicked.connect(self._new_macro)
         m_del = QPushButton('－', objectName='btn_icon')
-        m_del.setFixedSize(24, 24)
+        m_del.setFixedSize(28, 28)
+        m_del.setToolTip('删除宏')
         m_del.clicked.connect(self._delete_macro)
         m_hdr.addWidget(ml_lbl, 1)
         m_hdr.addWidget(m_add)
         m_hdr.addWidget(m_del)
         ml_lay.addLayout(m_hdr)
 
+        # Macro list + empty state
         self.macro_list = QListWidget()
         self.macro_list.currentRowChanged.connect(self._on_macro_selected)
         ml_lay.addWidget(self.macro_list, 1)
+
+        self._macro_empty = QLabel('📦\n点击 ＋ 创建第一个宏')
+        self._macro_empty.setObjectName('empty_state')
+        self._macro_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._macro_empty.setWordWrap(True)
+        ml_lay.addWidget(self._macro_empty)
+        self._macro_empty.setVisible(False)
         
         m_lay.addWidget(m_list_cont)
         
@@ -324,19 +334,29 @@ class MainWindow(QMainWindow):
         tl_lbl = QLabel('触发器列表')
         tl_lbl.setObjectName('lbl_section')
         t_add = QPushButton('＋', objectName='btn_icon')
-        t_add.setFixedSize(24, 24)
+        t_add.setFixedSize(28, 28)
+        t_add.setToolTip('新建触发器')
         t_add.clicked.connect(self._new_trigger)
         t_del = QPushButton('－', objectName='btn_icon')
-        t_del.setFixedSize(24, 24)
+        t_del.setFixedSize(28, 28)
+        t_del.setToolTip('删除触发器')
         t_del.clicked.connect(self._delete_trigger)
         t_hdr.addWidget(tl_lbl, 1)
         t_hdr.addWidget(t_add)
         t_hdr.addWidget(t_del)
         tl_lay.addLayout(t_hdr)
 
+        # Trigger list + empty state
         self.trigger_list = QListWidget()
         self.trigger_list.currentRowChanged.connect(self._on_trigger_selected)
         tl_lay.addWidget(self.trigger_list, 1)
+
+        self._trigger_empty = QLabel('⚡\n点击 ＋ 创建第一个触发器')
+        self._trigger_empty.setObjectName('empty_state')
+        self._trigger_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._trigger_empty.setWordWrap(True)
+        tl_lay.addWidget(self._trigger_empty)
+        self._trigger_empty.setVisible(False)
 
         t_lay.addWidget(t_list_cont)
 
@@ -373,9 +393,9 @@ class MainWindow(QMainWindow):
         stat_lay = QHBoxLayout()
         self._status_lbl = QLabel('就绪', objectName='lbl_status_ok')
         self._hotkey_lbl = QLabel('全局热键: 未知')
-        self._hotkey_lbl.setStyleSheet('color: rgba(60,40,50,0.7); font-size: 11px;')
+        self._hotkey_lbl.setStyleSheet('color: rgba(180,185,220,0.4); font-size: 11px;')
         self._file_lbl = QLabel('')
-        self._file_lbl.setStyleSheet('color: rgba(60,40,50,0.7); font-size: 11px;')
+        self._file_lbl.setStyleSheet('color: rgba(180,185,220,0.4); font-size: 11px;')
         stat_lay.addWidget(self._status_lbl)
         stat_lay.addStretch()
         stat_lay.addWidget(self._file_lbl)
@@ -393,7 +413,7 @@ class MainWindow(QMainWindow):
         self.macro_list.blockSignals(True)
         self.macro_list.clear()
         for m in self.project.macros:
-            item = QListWidgetItem(f'⚡ {m.name}')
+            item = QListWidgetItem(f'📦 {m.name}')
             item.setData(Qt.ItemDataRole.UserRole, m.id)
             self.macro_list.addItem(item)
         if 0 <= old_row < self.macro_list.count():
@@ -401,6 +421,10 @@ class MainWindow(QMainWindow):
         elif self.macro_list.count() > 0:
             self.macro_list.setCurrentRow(0)
         self.macro_list.blockSignals(False)
+        # Toggle empty state
+        has_items = self.macro_list.count() > 0
+        self.macro_list.setVisible(has_items)
+        self._macro_empty.setVisible(not has_items)
         self._on_macro_selected(self.macro_list.currentRow())
 
     def _refresh_trigger_list(self):
@@ -409,7 +433,7 @@ class MainWindow(QMainWindow):
         self.trigger_list.clear()
         for t in self.project.triggers:
             icon = '🖼' if t.type == 'image' else '📝'
-            prefix = '' if t.enabled else '○ '
+            prefix = '● ' if t.enabled else '○ '
             item = QListWidgetItem(f'{prefix}{icon} {t.name}')
             item.setData(Qt.ItemDataRole.UserRole, t.id)
             self.trigger_list.addItem(item)
@@ -418,6 +442,10 @@ class MainWindow(QMainWindow):
         elif self.trigger_list.count() > 0:
             self.trigger_list.setCurrentRow(0)
         self.trigger_list.blockSignals(False)
+        # Toggle empty state
+        has_items = self.trigger_list.count() > 0
+        self.trigger_list.setVisible(has_items)
+        self._trigger_empty.setVisible(not has_items)
         self._on_trigger_selected(self.trigger_list.currentRow())
 
     def _on_macro_selected(self, row: int):
@@ -661,7 +689,16 @@ class MainWindow(QMainWindow):
     def _append_log(self, msg: str):
         import datetime
         ts = datetime.datetime.now().strftime('%H:%M:%S')
-        self._log_view.append(f'<span style="color:#c490a8">[{ts}]</span> {msg}')
+        # Color-code log messages
+        if '[ERROR]' in msg:
+            color = '#f87171'
+        elif '切换' in msg or '已加载' in msg or '已保存' in msg:
+            color = '#5eead4'
+        else:
+            color = '#c8cde8'
+        self._log_view.append(
+            f'<span style="color:rgba(124,110,248,0.5)">[{ts}]</span> '
+            f'<span style="color:{color}">{msg}</span>')
         # Auto-scroll to bottom
         sb = self._log_view.verticalScrollBar()
         sb.setValue(sb.maximum())

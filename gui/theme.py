@@ -697,4 +697,167 @@ QDialogButtonBox QPushButton {
     min-width: 80px;
     padding: 8px 20px;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   Toolbar Button Group - Compact Labels
+   ══════════════════════════════════════════════════════════════ */
+QPushButton#btn_toolbar {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 6px 14px;
+    min-height: 28px;
+    color: rgba(200, 205, 232, 0.7);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+QPushButton#btn_toolbar:hover {
+    background: rgba(124, 110, 248, 0.18);
+    border-color: rgba(124, 110, 248, 0.45);
+    color: #a5b4fc;
+}
+
+QPushButton#btn_toolbar:pressed {
+    background: rgba(124, 110, 248, 0.28);
+    border-color: rgba(124, 110, 248, 0.6);
+}
+
+/* ── Toolbar Separator ── */
+QFrame#toolbar_separator {
+    background: rgba(255, 255, 255, 0.08);
+    max-width: 1px;
+    min-width: 1px;
+    margin: 4px 6px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Action List Item - Rich Content
+   ══════════════════════════════════════════════════════════════ */
+QWidget#action_item_widget {
+    background: transparent;
+}
+
+QLabel#action_type_tag {
+    background: rgba(99, 102, 241, 0.25);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+QLabel#action_type_tag_mouse {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#action_type_tag_key {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#action_type_tag_delay {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fde68a;
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#action_type_tag_loop {
+    background: rgba(168, 85, 247, 0.2);
+    color: #d8b4fe;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#action_type_tag_cond {
+    background: rgba(6, 182, 212, 0.18);
+    color: #67e8f9;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    border-radius: 8px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QLabel#action_param_text {
+    color: rgba(200, 205, 232, 0.65);
+    font-size: 12px;
+    background: transparent;
+}
+
+/* ── Action Dot Indicator ── */
+QFrame#action_dot {
+    border-radius: 5px;
+    min-width: 10px;
+    max-width: 10px;
+    min-height: 10px;
+    max-height: 10px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Empty State Placeholder
+   ══════════════════════════════════════════════════════════════ */
+QLabel#empty_state {
+    color: rgba(180, 185, 220, 0.3);
+    font-size: 14px;
+    font-weight: 500;
+    background: transparent;
+    padding: 40px;
+}
+
+QLabel#empty_state_icon {
+    color: rgba(124, 110, 248, 0.2);
+    font-size: 36px;
+    background: transparent;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Threshold Color Indicators
+   ══════════════════════════════════════════════════════════════ */
+QLabel#thr_low {
+    color: #f87171;
+    font-weight: bold;
+    background: transparent;
+}
+QLabel#thr_mid {
+    color: #fbbf24;
+    font-weight: bold;
+    background: transparent;
+}
+QLabel#thr_high {
+    color: #4ade80;
+    font-weight: bold;
+    background: transparent;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Template Preview Empty State
+   ══════════════════════════════════════════════════════════════ */
+QLabel#tmpl_empty {
+    border: 2px dashed rgba(124, 110, 248, 0.25);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    color: rgba(180, 185, 220, 0.35);
+    font-size: 11px;
+}
 """

@@ -29,24 +29,32 @@ class TriggerEditorPanel(QWidget):
     def _build_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(10)
+        root.setSpacing(12)
 
-        # ── Header row ──
-        hdr = QHBoxLayout()
-        name_lbl = QLabel('触发器名称:')
-        name_lbl.setFixedWidth(80)
+        # ── Header card: name + enabled + type ──
+        hdr_card = QFrame()
+        hdr_card.setObjectName('panel_card')
+        hc_lay = QVBoxLayout(hdr_card)
+        hc_lay.setContentsMargins(16, 14, 16, 14)
+        hc_lay.setSpacing(10)
+
+        # Row 1: name + enabled
+        name_row = QHBoxLayout()
+        name_lbl = QLabel('触发器名称')
+        name_lbl.setObjectName('lbl_section')
+        name_lbl.setFixedWidth(86)
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText('输入触发器名称…')
         self.name_edit.textEdited.connect(lambda v: self._set('name', v))
         self.enabled_chk = QCheckBox('启用')
         self.enabled_chk.stateChanged.connect(
             lambda: self._set('enabled', self.enabled_chk.isChecked()))
-        hdr.addWidget(name_lbl)
-        hdr.addWidget(self.name_edit, 1)
-        hdr.addWidget(self.enabled_chk)
-        root.addLayout(hdr)
+        name_row.addWidget(name_lbl)
+        name_row.addWidget(self.name_edit, 1)
+        name_row.addWidget(self.enabled_chk)
+        hc_lay.addLayout(name_row)
 
-        # ── Type selector ──
+        # Row 2: type selector
         type_row = QHBoxLayout()
         type_row.addWidget(QLabel('触发类型:'))
         self.type_combo = QComboBox()
@@ -54,51 +62,81 @@ class TriggerEditorPanel(QWidget):
         self.type_combo.addItem('📝  文字识别  (OCR)', 'text')
         self.type_combo.currentIndexChanged.connect(self._on_type_changed)
         type_row.addWidget(self.type_combo, 1)
-        root.addLayout(type_row)
+        hc_lay.addLayout(type_row)
+
+        root.addWidget(hdr_card)
 
         # ── Detection region ──
         reg_grp = QGroupBox('检测区域')
         reg_layout = QHBoxLayout(reg_grp)
+        reg_layout.setContentsMargins(16, 20, 16, 14)
+
+        # Region info column
+        reg_info = QVBoxLayout()
         self.region_lbl = QLabel('未设置')
-        self.region_lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
+        self.region_lbl.setStyleSheet('color:rgba(180,185,220,0.4); font-size:13px;')
+        reg_hint = QLabel('框选屏幕区域用于检测触发条件')
+        reg_hint.setStyleSheet('color:rgba(180,185,220,0.25); font-size:11px;')
+        reg_info.addWidget(self.region_lbl)
+        reg_info.addWidget(reg_hint)
+        reg_layout.addLayout(reg_info, 1)
+
         btn_sel = QPushButton('🔲  框选区域')
         btn_sel.setObjectName('btn_accent')
         btn_sel.clicked.connect(self._select_region)
-        reg_layout.addWidget(self.region_lbl, 1)
         reg_layout.addWidget(btn_sel)
         root.addWidget(reg_grp)
 
         # ── Image trigger group ──
         self.img_grp = QGroupBox('图像识别设置')
         img_layout = QVBoxLayout(self.img_grp)
+        img_layout.setContentsMargins(16, 20, 16, 14)
+        img_layout.setSpacing(12)
 
+        # Template row
         tmpl_row = QHBoxLayout()
+        tmpl_row.setSpacing(12)
+
+        # Preview (larger)
+        self.tmpl_preview = QLabel()
+        self.tmpl_preview.setFixedSize(120, 75)
+        self.tmpl_preview.setObjectName('tmpl_empty')
+        self.tmpl_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.tmpl_preview.setText('📷 截取模板')
+        tmpl_row.addWidget(self.tmpl_preview)
+
+        # Template info + buttons
+        tmpl_info = QVBoxLayout()
+        tmpl_info.setSpacing(6)
         self.tmpl_lbl = QLabel('无模板')
-        self.tmpl_lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
+        self.tmpl_lbl.setStyleSheet('color:rgba(180,185,220,0.4); font-size:12px;')
+        tmpl_info.addWidget(self.tmpl_lbl)
+
+        tmpl_btns = QHBoxLayout()
+        tmpl_btns.setSpacing(6)
         btn_capture = QPushButton('📷  截取模板')
         btn_capture.setObjectName('btn_accent')
         btn_capture.clicked.connect(self._capture_template)
         btn_load = QPushButton('📁  选择文件')
         btn_load.clicked.connect(self._load_template_file)
-        self.tmpl_preview = QLabel()
-        self.tmpl_preview.setFixedSize(80, 50)
-        self.tmpl_preview.setStyleSheet(
-            'border:1px solid #f2c2d6;border-radius:4px;background:rgba(255, 255, 255, 0.7);')
-        self.tmpl_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tmpl_row.addWidget(self.tmpl_lbl, 1)
-        tmpl_row.addWidget(btn_capture)
-        tmpl_row.addWidget(btn_load)
-        img_layout.addLayout(tmpl_row)
-        img_layout.addWidget(self.tmpl_preview)
+        tmpl_btns.addWidget(btn_capture)
+        tmpl_btns.addWidget(btn_load)
+        tmpl_info.addLayout(tmpl_btns)
+        tmpl_row.addLayout(tmpl_info, 1)
 
+        img_layout.addLayout(tmpl_row)
+
+        # Threshold row with color indicator
         thr_row = QHBoxLayout()
+        thr_row.setSpacing(8)
         thr_row.addWidget(QLabel('相似度阈值:'))
         self.thr_slider = QSlider(Qt.Orientation.Horizontal)
         self.thr_slider.setRange(50, 100)
         self.thr_slider.setValue(80)
         self.thr_slider.valueChanged.connect(self._on_threshold_changed)
         self.thr_val_lbl = QLabel('0.80')
-        self.thr_val_lbl.setFixedWidth(36)
+        self.thr_val_lbl.setFixedWidth(42)
+        self.thr_val_lbl.setObjectName('thr_mid')
         thr_row.addWidget(self.thr_slider, 1)
         thr_row.addWidget(self.thr_val_lbl)
         img_layout.addLayout(thr_row)
@@ -107,6 +145,9 @@ class TriggerEditorPanel(QWidget):
         # ── Text trigger group ──
         self.txt_grp = QGroupBox('文字识别设置  (OCR)')
         txt_layout = QFormLayout(self.txt_grp)
+        txt_layout.setContentsMargins(16, 20, 16, 14)
+        txt_layout.setSpacing(10)
+
         self.txt_edit = QLineEdit()
         self.txt_edit.setPlaceholderText('目标文字…')
         self.txt_edit.textEdited.connect(lambda v: self._set('target_text', v))
@@ -119,7 +160,12 @@ class TriggerEditorPanel(QWidget):
             lambda: self._set('match_mode', self.match_combo.currentData()))
         
         # ── Number Comparison Config ──
-        self.num_cmp_row = QHBoxLayout()
+        self.num_cmp_card = QFrame()
+        self.num_cmp_card.setObjectName('panel_card')
+        ncl = QHBoxLayout(self.num_cmp_card)
+        ncl.setContentsMargins(12, 10, 12, 10)
+        ncl.setSpacing(8)
+
         self.num_cmp_combo = QComboBox()
         self.num_cmp_combo.addItem('< 小于', 'lt')
         self.num_cmp_combo.addItem('≤ 小于等于', 'lte')
@@ -135,14 +181,16 @@ class TriggerEditorPanel(QWidget):
         self.num_val_spin.valueChanged.connect(
             lambda v: self._set('number_val', v))
             
-        self.num_cmp_row.addWidget(self.num_cmp_combo)
-        self.num_cmp_row.addWidget(self.num_val_spin)
+        ncl.addWidget(QLabel('比较:'))
+        ncl.addWidget(self.num_cmp_combo, 1)
+        ncl.addWidget(QLabel('值:'))
+        ncl.addWidget(self.num_val_spin, 1)
         
         txt_layout.addRow('目标文字:', self.txt_edit)
         txt_layout.addRow('匹配方式:', self.match_combo)
         self.txt_layout_label_target = txt_layout.labelForField(self.txt_edit)
-        txt_layout.addRow('数值条件:', self.num_cmp_row)
-        self.txt_layout_label_num = txt_layout.labelForField(self.num_cmp_row)
+        txt_layout.addRow('数值条件:', self.num_cmp_card)
+        self.txt_layout_label_num = txt_layout.labelForField(self.num_cmp_card)
         
         self.match_combo.currentIndexChanged.connect(self._on_match_mode_changed)
         
@@ -172,8 +220,8 @@ class TriggerEditorPanel(QWidget):
         # Template
         self._update_template_preview(trigger.template_path)
         
-        self._building = False
         self._on_type_changed()
+        self._building = False
 
     # ──────────────────────────────────────────── Helpers
     def _set(self, attr: str, value):
@@ -183,18 +231,28 @@ class TriggerEditorPanel(QWidget):
 
     def _update_region_label(self, region):
         x, y, w, h = region
-        self.region_lbl.setText(f'({x}, {y})  {w} × {h} px')
-        self.region_lbl.setStyleSheet('color:#c94080;font-weight:bold;')
+        self.region_lbl.setText(f'📍 ({x}, {y})  →  {w} × {h} px')
+        self.region_lbl.setStyleSheet('color:#a5b4fc; font-weight:bold; font-size:13px;')
 
     def _update_template_preview(self, path: str):
         if path and os.path.exists(path):
             self.tmpl_lbl.setText(os.path.basename(path))
+            self.tmpl_lbl.setStyleSheet('color:#a5b4fc; font-weight:bold; font-size:12px;')
             pix = QPixmap(path).scaled(
-                78, 48, Qt.AspectRatioMode.KeepAspectRatio,
+                116, 71, Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation)
             self.tmpl_preview.setPixmap(pix)
+            self.tmpl_preview.setObjectName('')  # clear empty state style
+            self.tmpl_preview.setStyleSheet(
+                'border:1px solid rgba(124,110,248,0.3);border-radius:10px;'
+                'background:rgba(255,255,255,0.04);')
         else:
             self.tmpl_lbl.setText('无模板')
+            self.tmpl_lbl.setStyleSheet('color:rgba(180,185,220,0.4); font-size:12px;')
+            self.tmpl_preview.clear()
+            self.tmpl_preview.setText('📷 截取模板')
+            self.tmpl_preview.setObjectName('tmpl_empty')
+            self.tmpl_preview.setStyleSheet('')  # let QSS handle it
 
     def _on_type_changed(self):
         t = self.type_combo.currentData()
@@ -207,20 +265,30 @@ class TriggerEditorPanel(QWidget):
         """匹配模式改变时的处理函数。"""
         m = self.match_combo.currentData()
         is_num = (m == 'number')
+
+        # Toggle text input visibility
         self.txt_edit.setVisible(not is_num)
         if self.txt_layout_label_target is not None:
             self.txt_layout_label_target.setVisible(not is_num)
         
-        for i in range(self.num_cmp_row.count()):
-            w = self.num_cmp_row.itemAt(i).widget()
-            if w is not None:
-                w.setVisible(is_num)
+        # Toggle number comparison card visibility
+        self.num_cmp_card.setVisible(is_num)
         if self.txt_layout_label_num is not None:
             self.txt_layout_label_num.setVisible(is_num)
 
     def _on_threshold_changed(self, v: int):
         val = v / 100.0
         self.thr_val_lbl.setText(f'{val:.2f}')
+        # Color indicator based on threshold level
+        if val < 0.70:
+            self.thr_val_lbl.setObjectName('thr_low')
+        elif val <= 0.85:
+            self.thr_val_lbl.setObjectName('thr_mid')
+        else:
+            self.thr_val_lbl.setObjectName('thr_high')
+        # Force style refresh
+        self.thr_val_lbl.style().unpolish(self.thr_val_lbl)
+        self.thr_val_lbl.style().polish(self.thr_val_lbl)
         if not self._building:
             self._set('threshold', val)
 

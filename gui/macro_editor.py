@@ -2,17 +2,85 @@
 import os
 from typing import Optional, List
 
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QSize
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget, QListWidgetItem,
     QPushButton, QLabel, QLineEdit, QDialog, QFormLayout,
     QSpinBox, QComboBox, QDialogButtonBox, QFrame, QSizePolicy,
-    QMenu, QApplication,
+    QMenu, QApplication, QStackedWidget,
 )
 
 from core.macro import Action, MacroSequence
 from .region_selector import PointSelector
+
+
+# ══════════════════════════════════════════════════════════════
+#  Action type → visual tag mapping
+# ══════════════════════════════════════════════════════════════
+_TAG_MAP = {
+    'click':        ('🖱 点击',     'action_type_tag_mouse', '#3b82f6'),
+    'right_click':  ('🖱 右键',     'action_type_tag_mouse', '#3b82f6'),
+    'double_click': ('🖱 双击',     'action_type_tag_mouse', '#3b82f6'),
+    'move':         ('↗ 移动',     'action_type_tag_mouse', '#3b82f6'),
+    'key':          ('⌨ 按键',     'action_type_tag_key',   '#22c55e'),
+    'delay':        ('⏱ 延时',     'action_type_tag_delay', '#fbbf24'),
+    'loop_start':   ('🔁 循环开始', 'action_type_tag_loop',  '#a855f7'),
+    'loop_end':     ('🔚 循环结束', 'action_type_tag_loop',  '#a855f7'),
+    'if':           ('❓ 如果',     'action_type_tag_cond',  '#06b6d4'),
+    'elif':         ('❔ 否则如果', 'action_type_tag_cond',  '#06b6d4'),
+    'else_start':   ('⛔ 否则',     'action_type_tag_cond',  '#06b6d4'),
+    'end_if':       ('🔚 结束判断', 'action_type_tag_cond',  '#06b6d4'),
+}
+
+def _param_text(action: Action) -> str:
+    """Extract a short parameter summary for display."""
+    p = action.params
+    if action.type in ('click', 'right_click', 'double_click', 'move'):
+        return f"({p.get('x', 0)}, {p.get('y', 0)})"
+    elif action.type == 'key':
+        return p.get('key', '')
+    elif action.type == 'delay':
+        return f"{p.get('ms', 1000)} ms"
+    elif action.type == 'loop_start':
+        c = p.get('count', -1)
+        return '∞ 次' if c == -1 else f'{c} 次'
+    elif action.type in ('if', 'elif'):
+        return p.get('trigger_name', '未选择')
+    return ''
+
+
+def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
+    """Build a rich list item widget for an Action."""
+    w = QWidget()
+    w.setObjectName('action_item_widget')
+    lay = QHBoxLayout(w)
+    lay.setContentsMargins(4 + depth * 20, 4, 8, 4)
+    lay.setSpacing(10)
+
+    # Color dot
+    tag_info = _TAG_MAP.get(action.type, ('•', 'action_type_tag', '#7c6ef8'))
+    dot = QFrame()
+    dot.setObjectName('action_dot')
+    dot.setStyleSheet(f'background: {tag_info[2]};')
+    dot.setFixedSize(10, 10)
+    lay.addWidget(dot)
+
+    # Type tag
+    tag = QLabel(tag_info[0])
+    tag.setObjectName(tag_info[1])
+    tag.setFixedHeight(22)
+    lay.addWidget(tag)
+
+    # Param text
+    pt = _param_text(action)
+    if pt:
+        param = QLabel(pt)
+        param.setObjectName('action_param_text')
+        lay.addWidget(param)
+
+    lay.addStretch()
+    return w
 
 
 # ══════════════════════════════════════════════════════════════
@@ -38,30 +106,37 @@ class ActionDialog(QDialog):
         super().__init__(parent)
         self.project = project
         self.setWindowTitle('编辑动作')
-        self.setMinimumWidth(360)
+        self.setMinimumWidth(400)
         self.setModal(True)
         self._picker: Optional[PointSelector] = None
         self._picked_x = QSpinBox()
         self._picked_y = QSpinBox()
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+        layout.setSpacing(14)
+        layout.setContentsMargins(20, 20, 20, 20)
 
-        # Type selector
-        type_row = QHBoxLayout()
-        type_row.addWidget(QLabel('动作类型:'))
+        # Type selector in a card
+        type_card = QFrame()
+        type_card.setObjectName('panel_card')
+        tc_lay = QVBoxLayout(type_card)
+        tc_lay.setContentsMargins(14, 14, 14, 14)
+        type_lbl = QLabel('动作类型')
+        type_lbl.setObjectName('lbl_section')
+        tc_lay.addWidget(type_lbl)
         self.type_combo = QComboBox()
         for code, label in self.ACTION_TYPES:
             self.type_combo.addItem(label, code)
         self.type_combo.currentIndexChanged.connect(self._on_type_changed)
-        type_row.addWidget(self.type_combo, 1)
-        layout.addLayout(type_row)
+        tc_lay.addWidget(self.type_combo)
+        layout.addWidget(type_card)
 
         # Parameter form (dynamic)
         self.form_frame = QFrame()
         self.form_frame.setObjectName('panel_card')
         self.form_layout = QFormLayout(self.form_frame)
-        self.form_layout.setSpacing(8)
+        self.form_layout.setSpacing(10)
+        self.form_layout.setContentsMargins(14, 14, 14, 14)
         layout.addWidget(self.form_frame)
 
         # Stored param values (survive widget recreation)
@@ -159,7 +234,7 @@ class ActionDialog(QDialog):
             self._w_key.setText(self._val_key)
             self.form_layout.addRow('按键组合:', self._w_key)
             hint = QLabel('示例: ctrl+c、f5、alt+F4、enter')
-            hint.setStyleSheet('color:rgba(140,110,125,0.6);font-size:11px;')
+            hint.setStyleSheet('color:rgba(180,185,220,0.4);font-size:11px;')
             self.form_layout.addRow('', hint)
         elif t == 'delay':
             self._w_ms = QSpinBox(); self._w_ms.setRange(1, 60000)
@@ -171,16 +246,16 @@ class ActionDialog(QDialog):
             self._w_count.setValue(self._val_count)
             self.form_layout.addRow('循环次数:', self._w_count)
             hint = QLabel('-1 = 无限循环，直到手动停止')
-            hint.setStyleSheet('color:rgba(140,110,125,0.6);font-size:11px;')
+            hint.setStyleSheet('color:rgba(180,185,220,0.4);font-size:11px;')
             self.form_layout.addRow('', hint)
         elif t == 'loop_end':
             lbl = QLabel('无参数 — 配合"开始循环"使用')
-            lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
+            lbl.setStyleSheet('color:rgba(180,185,220,0.4);')
             self.form_layout.addRow(lbl)
             
         elif t in ('else_start', 'end_if'):
             lbl = QLabel('无参数 — 配合条件控制流使用')
-            lbl.setStyleSheet('color:rgba(140,110,125,0.6);')
+            lbl.setStyleSheet('color:rgba(180,185,220,0.4);')
             self.form_layout.addRow(lbl)
             
         elif t in ('if', 'elif'):
@@ -268,22 +343,33 @@ class MacroEditorPanel(QWidget):
     def _build_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(8)
+        root.setSpacing(10)
+
+        # ── Info card: name + random delay ──
+        info_card = QFrame()
+        info_card.setObjectName('panel_card')
+        ic_lay = QVBoxLayout(info_card)
+        ic_lay.setContentsMargins(16, 14, 16, 14)
+        ic_lay.setSpacing(10)
 
         # Name row
         name_row = QHBoxLayout()
-        name_lbl = QLabel('宏名称:')
+        name_lbl = QLabel('宏名称')
+        name_lbl.setObjectName('lbl_section')
         name_lbl.setFixedWidth(56)
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText('输入宏名称…')
         self.name_edit.textEdited.connect(self._on_name_edited)
         name_row.addWidget(name_lbl)
         name_row.addWidget(self.name_edit)
-        root.addLayout(name_row)
+        ic_lay.addLayout(name_row)
 
         # Random delay row
         delay_row = QHBoxLayout()
-        delay_row.addWidget(QLabel('🎲 随机延迟:'))
+        delay_icon = QLabel('🎲')
+        delay_icon.setFixedWidth(20)
+        delay_row.addWidget(delay_icon)
+        delay_row.addWidget(QLabel('随机延迟'))
         self._delay_min = QSpinBox()
         self._delay_min.setRange(0, 5000)
         self._delay_min.setSuffix(' ms')
@@ -291,7 +377,9 @@ class MacroEditorPanel(QWidget):
         self._delay_min.setToolTip('每个动作前的最小随机延迟')
         self._delay_min.valueChanged.connect(self._on_delay_changed)
         delay_row.addWidget(self._delay_min)
-        delay_row.addWidget(QLabel('~'))
+        sep_lbl = QLabel('~')
+        sep_lbl.setStyleSheet('color: rgba(124,110,248,0.5); font-weight: bold;')
+        delay_row.addWidget(sep_lbl)
         self._delay_max = QSpinBox()
         self._delay_max.setRange(0, 5000)
         self._delay_max.setSuffix(' ms')
@@ -300,47 +388,98 @@ class MacroEditorPanel(QWidget):
         self._delay_max.valueChanged.connect(self._on_delay_changed)
         delay_row.addWidget(self._delay_max)
         delay_hint = QLabel('拟真')
-        delay_hint.setStyleSheet('color:rgba(140,110,125,0.6);font-size:11px;')
+        delay_hint.setStyleSheet('color:rgba(180,185,220,0.35);font-size:11px;')
         delay_row.addWidget(delay_hint)
         delay_row.addStretch()
-        root.addLayout(delay_row)
+        ic_lay.addLayout(delay_row)
 
-        # Toolbar
+        root.addWidget(info_card)
+
+        # ── Toolbar ──
         tb = QHBoxLayout()
-        self._btn_add = self._tb_btn('➕', '添加动作', self._add_action)
-        self._btn_edit = self._tb_btn('✏️', '编辑动作', self._edit_action)
-        self._btn_del = self._tb_btn('🗑', '删除动作', self._delete_action)
-        self._btn_up = self._tb_btn('⬆', '上移', self._move_up)
-        self._btn_dn = self._tb_btn('⬇', '下移', self._move_down)
-        for b in (self._btn_add, self._btn_edit, self._btn_del,
-                  self._btn_up, self._btn_dn):
-            tb.addWidget(b)
+        tb.setSpacing(4)
+
+        self._btn_add = self._tb_btn('＋ 添加', '添加动作', self._add_action)
+        self._btn_edit = self._tb_btn('✏ 编辑', '编辑动作', self._edit_action)
+        self._btn_del = self._tb_btn('✕ 删除', '删除动作', self._delete_action)
+
+        tb.addWidget(self._btn_add)
+        tb.addWidget(self._btn_edit)
+        tb.addWidget(self._btn_del)
+
+        # Separator
+        sep = QFrame()
+        sep.setObjectName('toolbar_separator')
+        sep.setFixedHeight(24)
+        tb.addWidget(sep)
+
+        self._btn_up = self._tb_btn('▲ 上移', '上移', self._move_up)
+        self._btn_dn = self._tb_btn('▼ 下移', '下移', self._move_down)
+        tb.addWidget(self._btn_up)
+        tb.addWidget(self._btn_dn)
+
         tb.addStretch()
         root.addLayout(tb)
 
-        # Action list
+        # ── Action list with stacked empty state ──
+        list_container = QWidget()
+        lc_lay = QVBoxLayout(list_container)
+        lc_lay.setContentsMargins(0, 0, 0, 0)
+        lc_lay.setSpacing(0)
+
+        self._list_stack = QStackedWidget()
+
+        # Page 0: the actual list
         self.list = QListWidget()
         self.list.setAlternatingRowColors(False)
         self.list.itemDoubleClicked.connect(self._edit_action)
-        self.list.setFont(QFont("Consolas", 12))
-        root.addWidget(self.list, 1)
+        self._list_stack.addWidget(self.list)
 
-        # Run this macro button
+        # Page 1: empty state
+        empty_w = QWidget()
+        empty_lay = QVBoxLayout(empty_w)
+        empty_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_icon = QLabel('📦')
+        empty_icon.setObjectName('empty_state_icon')
+        empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_text = QLabel('点击「＋ 添加」创建第一个动作')
+        empty_text.setObjectName('empty_state')
+        empty_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_lay.addWidget(empty_icon)
+        empty_lay.addWidget(empty_text)
+        self._list_stack.addWidget(empty_w)
+
+        lc_lay.addWidget(self._list_stack)
+        root.addWidget(list_container, 1)
+
+        # ── Bottom: test button + hint ──
+        bottom_card = QFrame()
+        bottom_card.setObjectName('panel_card')
+        bc_lay = QVBoxLayout(bottom_card)
+        bc_lay.setContentsMargins(14, 10, 14, 10)
+        bc_lay.setSpacing(4)
+
         run_row = QHBoxLayout()
         self._btn_run_solo = QPushButton('▶  测试当前宏')
-        self._btn_run_solo.setToolTip('仅运行一次此宏进行测试，不开启全局触发检测')
         self._btn_run_solo.setObjectName('btn_run')
         self._btn_run_solo.clicked.connect(self._run_solo)
         run_row.addStretch()
         run_row.addWidget(self._btn_run_solo)
-        root.addLayout(run_row)
+        run_row.addStretch()
+        bc_lay.addLayout(run_row)
+
+        hint_lbl = QLabel('仅运行一次此宏进行测试，不开启全局触发检测')
+        hint_lbl.setStyleSheet('color: rgba(180,185,220,0.3); font-size: 11px;')
+        hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        bc_lay.addWidget(hint_lbl)
+
+        root.addWidget(bottom_card)
 
     @staticmethod
-    def _tb_btn(icon: str, tip: str, slot) -> QPushButton:
-        b = QPushButton(icon)
-        b.setObjectName('btn_icon')
+    def _tb_btn(text: str, tip: str, slot) -> QPushButton:
+        b = QPushButton(text)
+        b.setObjectName('btn_toolbar')
         b.setToolTip(tip)
-        b.setFixedWidth(36)
         b.clicked.connect(slot)
         return b
 
@@ -356,18 +495,24 @@ class MacroEditorPanel(QWidget):
 
     def _refresh_list(self):
         self.list.clear()
-        if not self.sequence:
+        if not self.sequence or not self.sequence.actions:
+            self._list_stack.setCurrentIndex(1)  # show empty state
             return
-        for i, action in enumerate(self.sequence.actions):
-            indent = self._indent(i)
-            item = QListWidgetItem(f'{indent}{action.display_text()}')
-            item.setData(Qt.ItemDataRole.UserRole, i)
-            self.list.addItem(item)
 
-    def _indent(self, index: int) -> str:
-        """Return leading spaces to visually indent loop body actions."""
+        self._list_stack.setCurrentIndex(0)  # show list
+        for i, action in enumerate(self.sequence.actions):
+            depth = self._depth(i)
+            item = QListWidgetItem()
+            item.setData(Qt.ItemDataRole.UserRole, i)
+            widget = _make_action_widget(action, depth)
+            item.setSizeHint(QSize(0, 36))
+            self.list.addItem(item)
+            self.list.setItemWidget(item, widget)
+
+    def _depth(self, index: int) -> int:
+        """Calculate nesting depth for indentation."""
         if not self.sequence:
-            return ''
+            return 0
         depth = 0
         for i, a in enumerate(self.sequence.actions[:index]):
             if a.type in ('loop_start', 'if'):
@@ -375,13 +520,12 @@ class MacroEditorPanel(QWidget):
             elif a.type in ('loop_end', 'end_if'):
                 depth = max(0, depth - 1)
                 
-        # Adjust depth backwards for lines that *are* elif/else themselves
-        # so they align with their parent IF block in the list
+        # Adjust for lines that are closers/branches themselves
         current_a = self.sequence.actions[index]
         if current_a.type in ('loop_end', 'elif', 'else_start', 'end_if'):
             depth = max(0, depth - 1)
             
-        return '    ' * depth
+        return depth
 
     def _on_delay_changed(self):
         if getattr(self, '_building', False):
@@ -396,7 +540,7 @@ class MacroEditorPanel(QWidget):
         for i in range(self.list.count()):
             item = self.list.item(i)
             if item.data(Qt.ItemDataRole.UserRole) == index:
-                item.setBackground(QColor(245, 190, 210))
+                item.setBackground(QColor(99, 102, 241, 50))
             else:
                 item.setBackground(QColor(0, 0, 0, 0))
 
