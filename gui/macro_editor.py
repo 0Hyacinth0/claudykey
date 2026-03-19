@@ -52,58 +52,61 @@ def _param_text(action: Action) -> str:
 
 
 def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
-    """Build a rich list item widget for an Action."""
+    """Build a rich list item widget for an Action — two-line vertical layout."""
     w = QWidget()
     w.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
-    lay = QHBoxLayout(w)
-    lay.setContentsMargins(6 + depth * 20, 3, 8, 3)
-    lay.setSpacing(10)
+
+    # Outer horizontal: [dot] [vertical: tag / param]
+    outer = QHBoxLayout(w)
+    outer.setContentsMargins(6 + depth * 20, 6, 12, 6)
+    outer.setSpacing(10)
 
     # Resolve style
     info = _TAG_STYLES.get(action.type, ('•', '#7c6ef8', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0.3)', '#a5b4fc'))
     label, dot_color, tag_bg, tag_border, tag_fg = info
 
-    # Color dot
+    # Color dot — centred vertically
     dot = QFrame()
-    dot.setFixedSize(10, 10)
-    dot.setStyleSheet(f'''
-        background: {dot_color};
-        border-radius: 5px;
-        min-width: 10px; max-width: 10px;
-        min-height: 10px; max-height: 10px;
-    ''')
-    lay.addWidget(dot)
+    dot.setFixedSize(8, 8)
+    dot.setStyleSheet(f'background:{dot_color}; border-radius:4px;')
+    outer.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
 
-    # Type tag (inline style — objectName QSS doesn't work inside QListWidget)
+    # Right column: tag row + optional param row
+    col = QVBoxLayout()
+    col.setSpacing(2)
+    col.setContentsMargins(0, 0, 0, 0)
+
+    # Row 1: type tag badge
     tag = QLabel(label)
-    tag.setFixedHeight(22)
     tag.setStyleSheet(f'''
         QLabel {{
             background: {tag_bg};
             color: {tag_fg};
             border: 1px solid {tag_border};
-            border-radius: 8px;
-            padding: 2px 10px;
+            border-radius: 6px;
+            padding: 1px 8px;
             font-size: 11px;
             font-weight: bold;
         }}
     ''')
-    lay.addWidget(tag)
+    # Don't fix height — let the text breathe
+    col.addWidget(tag, 0, Qt.AlignmentFlag.AlignLeft)
 
-    # Param text
+    # Row 2: param text (only if non-empty)
     pt = _param_text(action)
     if pt:
         param = QLabel(pt)
         param.setStyleSheet('''
             QLabel {
-                color: rgba(200, 205, 232, 0.65);
-                font-size: 12px;
+                color: rgba(200, 205, 232, 0.6);
+                font-size: 11px;
                 background: transparent;
+                padding-left: 2px;
             }
         ''')
-        lay.addWidget(param)
+        col.addWidget(param, 0, Qt.AlignmentFlag.AlignLeft)
 
-    lay.addStretch()
+    outer.addLayout(col, 1)
     return w
 
 
@@ -529,7 +532,7 @@ class MacroEditorPanel(QWidget):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, i)
             widget = _make_action_widget(action, depth)
-            item.setSizeHint(QSize(0, 44))
+            item.setSizeHint(QSize(0, 52))
             self.list.addItem(item)
             self.list.setItemWidget(item, widget)
 
