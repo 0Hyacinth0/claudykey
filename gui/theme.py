@@ -95,12 +95,10 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
    Glass Panels - Frosted Glass Effect
    ══════════════════════════════════════════════════════════════ */
 QFrame#sidebar {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255, 255, 255, 0.06),
-        stop:1 rgba(255, 255, 255, 0.02));
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-right: 1px solid rgba(255, 255, 255, 0.02);
+    border-radius: 20px;
 }
 
 QFrame#main_area {
@@ -108,28 +106,25 @@ QFrame#main_area {
 }
 
 QFrame#glass_card {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255, 255, 255, 0.055),
-        stop:1 rgba(255, 255, 255, 0.02));
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
 }
 
 QFrame#sidebar_group {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255, 255, 255, 0.05),
-        stop:1 rgba(255, 255, 255, 0.02));
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.015);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
     padding: 12px;
 }
 
 QFrame#panel_card {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255, 255, 255, 0.04),
-        stop:1 rgba(255, 255, 255, 0.01));
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 10px;
     padding: 16px;
 }
 
@@ -184,38 +179,36 @@ QLabel#lbl_status_err {
    Buttons - Interactive Elements
    ══════════════════════════════════════════════════════════════ */
 QPushButton {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255, 255, 255, 0.08),
-        stop:1 rgba(255, 255, 255, 0.03));
-    color: #c8cde8;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    padding: 8px 18px;
-    min-height: 32px;
-    font-weight: 600;
+    background: rgba(255, 255, 255, 0.03);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 16px;
+    min-height: 28px;
+    font-weight: 500;
 }
 
 QPushButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(124, 110, 248, 0.2),
-        stop:1 rgba(124, 110, 248, 0.1));
-    border: 1px solid rgba(124, 110, 248, 0.5);
-    color: #a5b4fc;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    color: #ffffff;
 }
 
 QPushButton:pressed {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(124, 110, 248, 0.3),
-        stop:1 rgba(124, 110, 248, 0.15));
-    border-color: rgba(124, 110, 248, 0.6);
-    padding-top: 9px;
-    padding-bottom: 7px;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: 1px solid rgba(255, 255, 255, 0.02);
+    padding-top: 7px;
+    padding-bottom: 5px;
 }
 
 QPushButton:disabled {
-    color: rgba(200, 205, 232, 0.25);
-    background: rgba(255, 255, 255, 0.02);
-    border-color: rgba(255, 255, 255, 0.05);
+    color: rgba(200, 205, 232, 0.2);
+    background: rgba(255, 255, 255, 0.01);
+    border-color: rgba(255, 255, 255, 0.03);
 }
 
 /* ── Navigation Buttons ── */
@@ -357,32 +350,30 @@ QPushButton#btn_icon:hover {
    Input Fields - Modern Inputs
    ══════════════════════════════════════════════════════════════ */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(255, 255, 255, 0.07),
-        stop:1 rgba(255, 255, 255, 0.03));
-    color: #dde1f0;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    padding: 8px 14px;
-    min-height: 32px;
+    background: rgba(0, 0, 0, 0.2);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 6px 12px;
+    min-height: 26px;
     selection-background-color: rgba(124, 110, 248, 0.5);
     selection-color: white;
 }
 
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-        stop:0 rgba(124, 110, 248, 0.12),
-        stop:1 rgba(124, 110, 248, 0.06));
+    background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(124, 110, 248, 0.6);
 }
 
 QLineEdit:read-only {
-    background: rgba(255, 255, 255, 0.02);
-    color: rgba(200, 205, 232, 0.4);
+    background: rgba(255, 255, 255, 0.015);
+    color: rgba(200, 205, 232, 0.3);
 }
 
 QLineEdit::placeholder {
-    color: rgba(200, 205, 232, 0.35);
+    color: rgba(200, 205, 232, 0.25);
 }
 
 /* ── ComboBox ── */
@@ -702,30 +693,30 @@ QDialogButtonBox QPushButton {
    Toolbar Button Group - Compact Labels
    ══════════════════════════════════════════════════════════════ */
 QPushButton#btn_toolbar {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 6px 14px;
-    min-height: 28px;
-    color: rgba(200, 205, 232, 0.7);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 6px 12px;
+    min-height: 26px;
+    color: rgba(226, 232, 240, 0.7);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 QPushButton#btn_toolbar:hover {
-    background: rgba(124, 110, 248, 0.18);
-    border-color: rgba(124, 110, 248, 0.45);
-    color: #a5b4fc;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
 }
 
 QPushButton#btn_toolbar:pressed {
-    background: rgba(124, 110, 248, 0.28);
-    border-color: rgba(124, 110, 248, 0.6);
+    background: rgba(255, 255, 255, 0.01);
+    border-color: rgba(255, 255, 255, 0.03);
 }
 
 /* ── Toolbar Separator ── */
 QFrame#toolbar_separator {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.05);
     max-width: 1px;
     min-width: 1px;
     margin: 4px 6px;
@@ -738,96 +729,19 @@ QWidget#action_item_widget {
     background: transparent;
 }
 
-QLabel#action_type_tag {
-    background: rgba(99, 102, 241, 0.25);
-    color: #a5b4fc;
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 8px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: bold;
-    letter-spacing: 0.5px;
-}
-
-QLabel#action_type_tag_mouse {
-    background: rgba(59, 130, 246, 0.2);
-    color: #93c5fd;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 8px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: bold;
-}
-
-QLabel#action_type_tag_key {
-    background: rgba(34, 197, 94, 0.18);
-    color: #86efac;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    border-radius: 8px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: bold;
-}
-
-QLabel#action_type_tag_delay {
-    background: rgba(251, 191, 36, 0.18);
-    color: #fde68a;
-    border: 1px solid rgba(251, 191, 36, 0.3);
-    border-radius: 8px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: bold;
-}
-
-QLabel#action_type_tag_loop {
-    background: rgba(168, 85, 247, 0.2);
-    color: #d8b4fe;
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    border-radius: 8px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: bold;
-}
-
-QLabel#action_type_tag_cond {
-    background: rgba(6, 182, 212, 0.18);
-    color: #67e8f9;
-    border: 1px solid rgba(6, 182, 212, 0.3);
-    border-radius: 8px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: bold;
-}
-
-QLabel#action_param_text {
-    color: rgba(200, 205, 232, 0.65);
-    font-size: 12px;
-    background: transparent;
-}
-
-/* ── Action Dot Indicator ── */
-QFrame#action_dot {
-    border-radius: 5px;
-    min-width: 10px;
-    max-width: 10px;
-    min-height: 10px;
-    max-height: 10px;
-}
-
 /* ══════════════════════════════════════════════════════════════
    Empty State Placeholder
    ══════════════════════════════════════════════════════════════ */
 QLabel#empty_state {
-    color: rgba(180, 185, 220, 0.3);
-    font-size: 14px;
-    font-weight: 500;
+    color: rgba(226, 232, 240, 0.25);
+    font-size: 13px;
     background: transparent;
     padding: 40px;
 }
 
 QLabel#empty_state_icon {
-    color: rgba(124, 110, 248, 0.2);
-    font-size: 36px;
+    color: rgba(226, 232, 240, 0.1);
+    font-size: 32px;
     background: transparent;
 }
 
@@ -835,17 +749,17 @@ QLabel#empty_state_icon {
    Threshold Color Indicators
    ══════════════════════════════════════════════════════════════ */
 QLabel#thr_low {
-    color: #f87171;
+    color: #ef4444; /* flatter red */
     font-weight: bold;
     background: transparent;
 }
 QLabel#thr_mid {
-    color: #fbbf24;
+    color: #eab308; /* flatter yellow */
     font-weight: bold;
     background: transparent;
 }
 QLabel#thr_high {
-    color: #4ade80;
+    color: #22c55e; /* flatter green */
     font-weight: bold;
     background: transparent;
 }
@@ -854,10 +768,10 @@ QLabel#thr_high {
    Template Preview Empty State
    ══════════════════════════════════════════════════════════════ */
 QLabel#tmpl_empty {
-    border: 2px dashed rgba(124, 110, 248, 0.25);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.02);
-    color: rgba(180, 185, 220, 0.35);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.01);
+    color: rgba(226, 232, 240, 0.3);
     font-size: 11px;
 }
 """

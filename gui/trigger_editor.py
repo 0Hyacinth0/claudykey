@@ -58,8 +58,8 @@ class TriggerEditorPanel(QWidget):
         type_row = QHBoxLayout()
         type_row.addWidget(QLabel('触发类型:'))
         self.type_combo = QComboBox()
-        self.type_combo.addItem('🖼  图像识别', 'image')
-        self.type_combo.addItem('📝  文字识别  (OCR)', 'text')
+        self.type_combo.addItem('⛶  图像识别', 'image')
+        self.type_combo.addItem('≡  文字识别  (OCR)', 'text')
         self.type_combo.currentIndexChanged.connect(self._on_type_changed)
         type_row.addWidget(self.type_combo, 1)
         hc_lay.addLayout(type_row)
@@ -81,7 +81,7 @@ class TriggerEditorPanel(QWidget):
         reg_info.addWidget(reg_hint)
         reg_layout.addLayout(reg_info, 1)
 
-        btn_sel = QPushButton('🔲  框选区域')
+        btn_sel = QPushButton('⛶  框选区域')
         btn_sel.setObjectName('btn_accent')
         btn_sel.clicked.connect(self._select_region)
         reg_layout.addWidget(btn_sel)
@@ -102,7 +102,7 @@ class TriggerEditorPanel(QWidget):
         self.tmpl_preview.setFixedSize(120, 75)
         self.tmpl_preview.setObjectName('tmpl_empty')
         self.tmpl_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.tmpl_preview.setText('📷 截取模板')
+        self.tmpl_preview.setText('⌖ 截取模板')
         tmpl_row.addWidget(self.tmpl_preview)
 
         # Template info + buttons
@@ -114,10 +114,10 @@ class TriggerEditorPanel(QWidget):
 
         tmpl_btns = QHBoxLayout()
         tmpl_btns.setSpacing(6)
-        btn_capture = QPushButton('📷  截取模板')
+        btn_capture = QPushButton('⌖  截取模板')
         btn_capture.setObjectName('btn_accent')
         btn_capture.clicked.connect(self._capture_template)
-        btn_load = QPushButton('📁  选择文件')
+        btn_load = QPushButton('▤  选择文件')
         btn_load.clicked.connect(self._load_template_file)
         tmpl_btns.addWidget(btn_capture)
         tmpl_btns.addWidget(btn_load)
@@ -231,7 +231,7 @@ class TriggerEditorPanel(QWidget):
 
     def _update_region_label(self, region):
         x, y, w, h = region
-        self.region_lbl.setText(f'📍 ({x}, {y})  →  {w} × {h} px')
+        self.region_lbl.setText(f'⌖ ({x}, {y})  →  {w} × {h} px')
         self.region_lbl.setStyleSheet('color:#a5b4fc; font-weight:bold; font-size:13px;')
 
     def _update_template_preview(self, path: str):
@@ -244,13 +244,13 @@ class TriggerEditorPanel(QWidget):
             self.tmpl_preview.setPixmap(pix)
             self.tmpl_preview.setObjectName('')  # clear empty state style
             self.tmpl_preview.setStyleSheet(
-                'border:1px solid rgba(124,110,248,0.3);border-radius:10px;'
-                'background:rgba(255,255,255,0.04);')
+                'border:1px solid rgba(255,255,255,0.08);border-radius:8px;'
+                'background:rgba(255,255,255,0.02);')
         else:
             self.tmpl_lbl.setText('无模板')
             self.tmpl_lbl.setStyleSheet('color:rgba(180,185,220,0.4); font-size:12px;')
             self.tmpl_preview.clear()
-            self.tmpl_preview.setText('📷 截取模板')
+            self.tmpl_preview.setText('⌖ 截取模板')
             self.tmpl_preview.setObjectName('tmpl_empty')
             self.tmpl_preview.setStyleSheet('')  # let QSS handle it
 

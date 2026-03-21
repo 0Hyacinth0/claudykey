@@ -20,18 +20,18 @@ from .region_selector import PointSelector
 #    (label, dot_color, tag_bg, tag_border, tag_text_color)
 # ══════════════════════════════════════════════════════════════
 _TAG_STYLES = {
-    'click':        ('🖱 点击',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
-    'right_click':  ('🖱 右键',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
-    'double_click': ('🖱 双击',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
-    'move':         ('↗ 移动',     '#3b82f6', 'rgba(59,130,246,0.2)',  'rgba(59,130,246,0.3)',  '#93c5fd'),
-    'key':          ('⌨ 按键',     '#22c55e', 'rgba(34,197,94,0.18)',  'rgba(34,197,94,0.3)',   '#86efac'),
-    'delay':        ('⏱ 延时',     '#fbbf24', 'rgba(251,191,36,0.18)', 'rgba(251,191,36,0.3)',  '#fde68a'),
-    'loop_start':   ('🔁 循环开始', '#a855f7', 'rgba(168,85,247,0.2)',  'rgba(168,85,247,0.3)',  '#d8b4fe'),
-    'loop_end':     ('🔚 循环结束', '#a855f7', 'rgba(168,85,247,0.2)',  'rgba(168,85,247,0.3)',  '#d8b4fe'),
-    'if':           ('❓ 如果',     '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
-    'elif':         ('❔ 否则如果', '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
-    'else_start':   ('⛔ 否则',     '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
-    'end_if':       ('🔚 结束判断', '#06b6d4', 'rgba(6,182,212,0.18)',  'rgba(6,182,212,0.3)',   '#67e8f9'),
+    'click':        ('⌖ 点击',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'right_click':  ('⌖ 右键',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'double_click': ('⌖ 双击',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'move':         ('↗ 移动',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'key':          ('⌘ 按键',     '#22c55e', 'transparent',  'rgba(34,197,94,0.4)',   '#86efac'),
+    'delay':        ('⧗ 延时',     '#fbbf24', 'transparent',  'rgba(251,191,36,0.4)',  '#fde68a'),
+    'loop_start':   ('⟳ 循环开始', '#a855f7', 'transparent',  'rgba(168,85,247,0.4)',  '#d8b4fe'),
+    'loop_end':     ('⟲ 循环结束', '#a855f7', 'transparent',  'rgba(168,85,247,0.4)',  '#d8b4fe'),
+    'if':           ('⭃ 如果',     '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+    'elif':         ('⭃ 否则如果', '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+    'else_start':   ('⭃ 否则',     '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+    'end_if':       ('⭃ 结束判断', '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
 }
 
 def _param_text(action: Action) -> str:
@@ -114,18 +114,18 @@ def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
 # ══════════════════════════════════════════════════════════════
 class ActionDialog(QDialog):
     ACTION_TYPES = [
-        ('click',        '🖱  左键点击'),
-        ('right_click',  '🖱  右键点击'),
-        ('double_click', '🖱🖱 双击'),
+        ('click',        '⌖  左键点击'),
+        ('right_click',  '⌖  右键点击'),
+        ('double_click', '⌖  双击'),
         ('move',         '↗  移动鼠标'),
-        ('key',          '⌨  按键'),
-        ('delay',        '⏱  等待延时'),
-        ('loop_start',   '🔁  开始循环'),
-        ('loop_end',     '🔚  结束循环'),
-        ('if',           '❓  如果发生触发事件则...'),
-        ('elif',         '❔  否则如果发生触发事件则...'),
-        ('else_start',   '⛔  否则...'),
-        ('end_if',       '🔚  结束判断'),
+        ('key',          '⌘  按键'),
+        ('delay',        '⧗  等待延时'),
+        ('loop_start',   '⟳  开始循环'),
+        ('loop_end',     '⟲  结束循环'),
+        ('if',           '⭃  如果发生触发事件则...'),
+        ('elif',         '⭃  否则如果发生触发事件则...'),
+        ('else_start',   '⭃  否则...'),
+        ('end_if',       '⭃  结束判断'),
     ]
 
     def __init__(self, action: Optional[Action] = None, parent=None, project=None):
@@ -248,7 +248,7 @@ class ActionDialog(QDialog):
         if t in ('click', 'right_click', 'double_click', 'move'):
             self._w_x = QSpinBox(); self._w_x.setRange(-9999, 9999); self._w_x.setValue(self._val_x)
             self._w_y = QSpinBox(); self._w_y.setRange(-9999, 9999); self._w_y.setValue(self._val_y)
-            btn_pick = QPushButton('🎯  屏幕拾取坐标')
+            btn_pick = QPushButton('⌖  屏幕拾取坐标')
             btn_pick.setObjectName('btn_accent')
             btn_pick.clicked.connect(self._pick_point)
             self.form_layout.addRow('X 坐标:', self._w_x)
@@ -392,7 +392,7 @@ class MacroEditorPanel(QWidget):
 
         # Random delay row
         delay_row = QHBoxLayout()
-        delay_icon = QLabel('🎲')
+        delay_icon = QLabel('⚄')
         delay_icon.setFixedWidth(20)
         delay_row.addWidget(delay_icon)
         delay_row.addWidget(QLabel('随机延迟'))
@@ -426,7 +426,7 @@ class MacroEditorPanel(QWidget):
         tb.setSpacing(4)
 
         self._btn_add = self._tb_btn('＋ 添加', '添加动作', self._add_action)
-        self._btn_edit = self._tb_btn('✏ 编辑', '编辑动作', self._edit_action)
+        self._btn_edit = self._tb_btn('✎ 编辑', '编辑动作', self._edit_action)
         self._btn_del = self._tb_btn('✕ 删除', '删除动作', self._delete_action)
 
         tb.addWidget(self._btn_add)
@@ -439,8 +439,8 @@ class MacroEditorPanel(QWidget):
         sep.setFixedHeight(24)
         tb.addWidget(sep)
 
-        self._btn_up = self._tb_btn('▲ 上移', '上移', self._move_up)
-        self._btn_dn = self._tb_btn('▼ 下移', '下移', self._move_down)
+        self._btn_up = self._tb_btn('↑ 上移', '上移', self._move_up)
+        self._btn_dn = self._tb_btn('↓ 下移', '下移', self._move_down)
         tb.addWidget(self._btn_up)
         tb.addWidget(self._btn_dn)
 
@@ -465,7 +465,7 @@ class MacroEditorPanel(QWidget):
         empty_w = QWidget()
         empty_lay = QVBoxLayout(empty_w)
         empty_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        empty_icon = QLabel('📦')
+        empty_icon = QLabel('◇')
         empty_icon.setObjectName('empty_state_icon')
         empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_text = QLabel('点击「＋ 添加」创建第一个动作')

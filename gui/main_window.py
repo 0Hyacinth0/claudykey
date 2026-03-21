@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
         self._backend_combo = QComboBox()
         self._populate_backend_combo()
         self._backend_combo.currentIndexChanged.connect(self._on_backend_changed)
-        bd_cfg_btn = QPushButton('⚙')
+        bd_cfg_btn = QPushButton('⛭')
         bd_cfg_btn.setObjectName('btn_icon')
         bd_cfg_btn.setFixedWidth(30)
         bd_cfg_btn.clicked.connect(self._on_backend_settings)
@@ -194,13 +194,13 @@ class MainWindow(QMainWindow):
         nav_lbl.setObjectName('lbl_sidebar_hdr')
         lay.addWidget(nav_lbl)
         
-        self._btn_nav_macro = QPushButton('📦  宏管理')
+        self._btn_nav_macro = QPushButton('⊞  宏管理')
         self._btn_nav_macro.setObjectName('btn_nav')
         self._btn_nav_macro.setCheckable(True)
         self._btn_nav_macro.setChecked(True)
         self._btn_nav_macro.clicked.connect(lambda: self._switch_nav(0))
         
-        self._btn_nav_trig = QPushButton('⚡  条件触发器')
+        self._btn_nav_trig = QPushButton('⭃  条件触发器')
         self._btn_nav_trig.setObjectName('btn_nav')
         self._btn_nav_trig.setCheckable(True)
         self._btn_nav_trig.clicked.connect(lambda: self._switch_nav(1))
@@ -220,21 +220,21 @@ class MainWindow(QMainWindow):
         self._proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
         file_lay.addWidget(self._proj_combo, 1)
 
-        b_save = QPushButton('💾')
+        b_save = QPushButton('⤓')
         b_save.setToolTip('保存配置')
         b_save.setObjectName('btn_icon')
         b_save.setFixedWidth(28)
         b_save.clicked.connect(self._save_project)
         file_lay.addWidget(b_save)
 
-        b_new = QPushButton('➕')
+        b_new = QPushButton('＋')
         b_new.setToolTip('新建配置')
         b_new.setObjectName('btn_icon')
         b_new.setFixedWidth(28)
         b_new.clicked.connect(self._new_project_prompt)
         file_lay.addWidget(b_new)
 
-        b_open = QPushButton('📂')
+        b_open = QPushButton('◿')
         b_open.setToolTip('浏览本地')
         b_open.setObjectName('btn_icon')
         b_open.setFixedWidth(28)
@@ -306,7 +306,7 @@ class MainWindow(QMainWindow):
         self.macro_list.currentRowChanged.connect(self._on_macro_selected)
         ml_lay.addWidget(self.macro_list, 1)
 
-        self._macro_empty = QLabel('📦\n点击 ＋ 创建第一个宏')
+        self._macro_empty = QLabel('◇\n点击 ＋ 创建第一个宏')
         self._macro_empty.setObjectName('empty_state')
         self._macro_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._macro_empty.setWordWrap(True)
@@ -351,7 +351,7 @@ class MainWindow(QMainWindow):
         self.trigger_list.currentRowChanged.connect(self._on_trigger_selected)
         tl_lay.addWidget(self.trigger_list, 1)
 
-        self._trigger_empty = QLabel('⚡\n点击 ＋ 创建第一个触发器')
+        self._trigger_empty = QLabel('⯌\n点击 ＋ 创建第一个触发器')
         self._trigger_empty.setObjectName('empty_state')
         self._trigger_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._trigger_empty.setWordWrap(True)
@@ -376,7 +376,7 @@ class MainWindow(QMainWindow):
         log_lay.setContentsMargins(10, 6, 10, 10)
         
         log_hdr = QHBoxLayout()
-        log_lbl = QLabel('📜 运行日志', objectName='lbl_section')
+        log_lbl = QLabel('≡ 运行日志', objectName='lbl_section')
         self._btn_clear_log = QPushButton('清空', objectName='btn_icon')
         self._btn_clear_log.setFixedWidth(48)
         self._btn_clear_log.clicked.connect(lambda: self._log_view.clear())
@@ -413,7 +413,7 @@ class MainWindow(QMainWindow):
         self.macro_list.blockSignals(True)
         self.macro_list.clear()
         for m in self.project.macros:
-            item = QListWidgetItem(f'📦 {m.name}')
+            item = QListWidgetItem(f'⊞ {m.name}')
             item.setData(Qt.ItemDataRole.UserRole, m.id)
             self.macro_list.addItem(item)
         if 0 <= old_row < self.macro_list.count():
@@ -432,7 +432,7 @@ class MainWindow(QMainWindow):
         self.trigger_list.blockSignals(True)
         self.trigger_list.clear()
         for t in self.project.triggers:
-            icon = '🖼' if t.type == 'image' else '📝'
+            icon = '⛶' if t.type == 'image' else '≡'
             prefix = '● ' if t.enabled else '○ '
             item = QListWidgetItem(f'{prefix}{icon} {t.name}')
             item.setData(Qt.ItemDataRole.UserRole, t.id)
@@ -691,13 +691,13 @@ class MainWindow(QMainWindow):
         ts = datetime.datetime.now().strftime('%H:%M:%S')
         # Color-code log messages
         if '[ERROR]' in msg:
-            color = '#f87171'
+            color = '#ef4444'
         elif '切换' in msg or '已加载' in msg or '已保存' in msg:
-            color = '#5eead4'
+            color = '#2dd4bf'
         else:
-            color = '#c8cde8'
+            color = '#94a3b8'
         self._log_view.append(
-            f'<span style="color:rgba(124,110,248,0.5)">[{ts}]</span> '
+            f'<span style="color:rgba(255,255,255,0.3)">[{ts}]</span> '
             f'<span style="color:{color}">{msg}</span>')
         # Auto-scroll to bottom
         sb = self._log_view.verticalScrollBar()
