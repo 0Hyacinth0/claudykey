@@ -6,11 +6,12 @@ from PyQt6.QtGui import QFont, QPixmap
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QLabel,
     QLineEdit, QCheckBox, QComboBox, QSlider, QSpinBox, QDoubleSpinBox,
-    QPushButton, QFrame, QFileDialog, QGroupBox,
+    QPushButton, QFrame, QFileDialog, QGroupBox, QMessageBox
 )
-
+import re
 from core.macro import TriggerConfig, MacroProject
 from .region_selector import RegionSelector
+from core import screen as scr, image_match, ocr as _ocr
 
 
 class TriggerEditorPanel(QWidget):
@@ -196,6 +197,23 @@ class TriggerEditorPanel(QWidget):
         
         root.addWidget(self.txt_grp)
 
+        # ── Bottom Test Button ──
+        test_card = QFrame()
+        test_card.setObjectName('panel_card')
+        tc_lay = QVBoxLayout(test_card)
+        tc_lay.setContentsMargins(14, 10, 14, 10)
+        
+        self.btn_test = QPushButton('▶  测试当前触发条件')
+        self.btn_test.setObjectName('btn_run')
+        self.btn_test.clicked.connect(self._test_trigger)
+        tc_lay.addWidget(self.btn_test)
+        
+        hint_lbl = QLabel('仅运行一次检测，验证识别范围、阈值或文字内容是否设置正确')
+        hint_lbl.setStyleSheet('color: rgba(180,185,220,0.3); font-size: 11px;')
+        hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        tc_lay.addWidget(hint_lbl)
+        
+        root.addWidget(test_card)
         root.addStretch()
 
     # ──────────────────────────────────────────── Load data
@@ -336,3 +354,103 @@ class TriggerEditorPanel(QWidget):
         os.makedirs(tmpl_dir, exist_ok=True)
         tid = self.trigger.id if self.trigger else 'tmp'
         return os.path.join(tmpl_dir, f'trigger_{tid}.png')
+
+    # ──────────────────────────────────────────── Trigger Testing
+    def _test_trigger(self):
+        if not self.trigger:
+            return
+
+        x, y, w, h = self.trigger.region
+        if w <= 0 or h <= 0:
+            QMessageBox.warning(self, "区域无效", "请先框选一个有效的检测区域。")
+            return
+
+        try:
+            img = scr.capture_region(x, y, w, h)
+        except Exception as e:
+            QMessageBox.critical(self, "截图失败", f"无法截取屏幕区域:\n{e}")
+            return
+
+        if self.trigger.type == 'image':
+            if not self.trigger.template_path or not os.path.exists(self.trigger.template_path):
+                QMessageBox.warning(self, "模板无效", "请先截取或选择一个有效的模板图像。")
+                return
+            
+            try:
+                tmpl = image_match.load_template(self.trigger.template_path)
+                result = image_match.find_template(img, tmpl, self.trigger.threshold)
+                
+                if result is not None:
+                    score = result[2]
+                    QMessageBox.information(
+                        self, 
+                        "识别成功", 
+                        f"在屏幕区域中成功匹配到了模板！\n\n置信度 (Score): {score:.4f}  (设定阈值: {self.trigger.threshold:.2f})"
+                    )
+                else:
+                    QMessageBox.warning(
+                        self, 
+                        "识别失败", 
+                        f"在屏幕区域中未找到满足阈值 ({self.trigger.threshold:.2f}) 的图像。"
+                    )
+            except Exception as e:
+                QMessageBox.critical(self, "图像匹配出错", f"执行图像匹配时发生错误:\n{e}")
+
+        elif self.trigger.type == 'text':
+            try:
+                text = _ocr.recognize_text_only(img)
+            except Exception as e:
+                QMessageBox.critical(self, "OCR 错误", f"执行 OCR 识别时发生错误:\n{e}")
+                return
+
+            tgt = str(self.trigger.target_text)
+            mode = self.trigger.match_mode
+            
+            is_match = False
+            match_detail = ""
+            
+            if mode == 'exact':
+                is_match = (text.strip() == tgt.strip())
+                match_detail = f"精准匹配目标: '{tgt}'"
+            elif mode == 'contains':
+                is_match = (tgt in text)
+                match_detail = f"包含目标文本: '{tgt}'"
+            elif mode == 'regex':
+                try:
+                    is_match = bool(re.search(tgt, text))
+                    match_detail = f"正则表达式: '{tgt}'"
+                except re.error as e:
+                    QMessageBox.warning(self, "正则错误", f"正则表达式无效: {e}")
+                    return
+            elif mode == 'number':
+                nums = re.findall(r'-?\d+\.?\d*', text)
+                if not nums:
+                    QMessageBox.warning(self, "未找到数字", f"识别到的文本中不包含有效数字。\n\n【实际识别内容】:\n{text}")
+                    return
+                try:
+                    val = float(nums[0])
+                    cmp_op = getattr(self.trigger, 'number_cmp', 'lte')
+                    ref_val = float(getattr(self.trigger, 'number_val', 0.0))
+                    
+                    cmp_ops = {
+                        'lt': lambda v, r: v < r, 'lte': lambda v, r: v <= r,
+                        'eq': lambda v, r: abs(v - r) < 1e-6,
+                        'gte': lambda v, r: v >= r, 'gt': lambda v, r: v > r,
+                    }
+                    cmp_symbols = {'lt': '<', 'lte': '≤', 'eq': '=', 'gte': '≥', 'gt': '>'}
+                    sym = cmp_symbols.get(cmp_op, cmp_op)
+                    
+                    if cmp_op in cmp_ops:
+                        is_match = cmp_ops[cmp_op](val, ref_val)
+                    match_detail = f"数值比较: 取出数值 {val}  {sym}  参考值 {ref_val}"
+                except ValueError:
+                    QMessageBox.warning(self, "数字解析错误", f"无法将识别出的部分解析为数字: {nums[0]}")
+                    return
+
+            icon = QMessageBox.Icon.Information if is_match else QMessageBox.Icon.Warning
+            title = "匹配成功" if is_match else "匹配失败"
+            msg = QMessageBox(self)
+            msg.setIcon(icon)
+            msg.setWindowTitle(title)
+            msg.setText(f"【OCR 实际识别文本】:\n\n{text if text.strip() else '(未识别到任何带意义的文字)'}\n\n---\n判断条件: {match_detail}\n判定结果: {'✅ 满足条件 (True)' if is_match else '❌ 不满足 (False)'}")
+            msg.exec()
