@@ -87,9 +87,11 @@ class ImageMatcher:
         if not 0 <= threshold <= 1:
             raise ValueError(f"阈值必须在 0-1 之间: {threshold}")
         
-        if template.shape[0] > screen.shape[0] or template.shape[1] > screen.shape[1]:
-            logger.debug("模板尺寸大于屏幕尺寸，跳过匹配")
-            return None
+        pad_h = max(0, template.shape[0] - screen.shape[0])
+        pad_w = max(0, template.shape[1] - screen.shape[1])
+        if pad_h > 0 or pad_w > 0:
+            logger.debug(f"搜索区域小于模板，自动边缘填充: h+{pad_h}, w+{pad_w}")
+            screen = cv2.copyMakeBorder(screen, 0, pad_h, 0, pad_w, cv2.BORDER_REPLICATE)
         
         try:
             result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
@@ -129,8 +131,11 @@ class ImageMatcher:
         if template is None or template.size == 0:
             raise ValueError("模板图像不能为空")
         
-        if template.shape[0] > screen.shape[0] or template.shape[1] > screen.shape[1]:
-            return []
+        pad_h = max(0, template.shape[0] - screen.shape[0])
+        pad_w = max(0, template.shape[1] - screen.shape[1])
+        if pad_h > 0 or pad_w > 0:
+            logger.debug(f"批量匹配: 搜索区域小于模板，自动边缘填充: h+{pad_h}, w+{pad_w}")
+            screen = cv2.copyMakeBorder(screen, 0, pad_h, 0, pad_w, cv2.BORDER_REPLICATE)
         
         try:
             result = cv2.matchTemplate(screen, template, cv2.TM_CCOEFF_NORMED)
