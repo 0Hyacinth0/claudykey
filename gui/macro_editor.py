@@ -234,9 +234,12 @@ class ActionDialog(QDialog):
                 pass
         if hasattr(self, '_w_trigger') and self._w_trigger is not None:
             try:
-                self._val_trigger_id = self._w_trigger.currentData()
-                self._val_trigger_name = self._w_trigger.currentText()
-            except RuntimeError:
+                selected_items = self._w_trigger.selectedItems()
+                ids = [item.data(Qt.ItemDataRole.UserRole) for item in selected_items if item.data(Qt.ItemDataRole.UserRole)]
+                names = [item.text() for item in selected_items]
+                self._val_trigger_id = ','.join(ids) if ids else ''
+                self._val_trigger_name = ' & '.join(names) if names else ''
+            except Exception:
                 pass
 
     def _on_type_changed(self):
@@ -285,16 +288,25 @@ class ActionDialog(QDialog):
             self.form_layout.addRow(lbl)
             
         elif t in ('if', 'elif'):
-            self._w_trigger = QComboBox()
-            if self.project and getattr(self.project, 'triggers', None):
-                for trig in self.project.triggers:
-                    self._w_trigger.addItem(f'{trig.name}', trig.id)
-            else:
-                self._w_trigger.addItem('未加载工作空间/无触发器', '')
+            from PyQt6.QtWidgets import QListWidget, QListWidgetItem, QAbstractItemView
+            self._w_trigger = QListWidget()
+            self._w_trigger.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+            self._w_trigger.setFixedHeight(80)
+            self._w_trigger.setObjectName('list_trigger_multi')
+            self._w_trigger.setStyleSheet('background: rgba(255,255,255,0.02); border-radius: 6px;')
             
-            idx = self._w_trigger.findData(self._val_trigger_id)
-            self._w_trigger.setCurrentIndex(max(0, idx))
-            self.form_layout.addRow('选择触发事件:', self._w_trigger)
+            if self.project and getattr(self.project, 'triggers', None):
+                saved_ids = [s.strip() for s in self._val_trigger_id.split(',')] if self._val_trigger_id else []
+                for trig in self.project.triggers:
+                    item = QListWidgetItem(f'{trig.name}')
+                    item.setData(Qt.ItemDataRole.UserRole, trig.id)
+                    self._w_trigger.addItem(item)
+                    if trig.id in saved_ids:
+                        item.setSelected(True)
+            else:
+                self._w_trigger.addItem('未加载或无触发器')
+            
+            self.form_layout.addRow('选择触发事件:\n(按 Ctrl/Cmd 多选)', self._w_trigger)
 
     def _select_region(self):
         self._sync_values_from_widgets()

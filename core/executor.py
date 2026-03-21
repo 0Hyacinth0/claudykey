@@ -232,7 +232,7 @@ class MacroExecutor(threading.Thread):
                 current_branch_start = j
                 
                 trigger_id_if = a.params.get('trigger_id', '')
-                current_cond = lambda tid=trigger_id_if: self._check_condition(tid)
+                current_cond = lambda tids=trigger_id_if: all(self._check_condition(tid.strip()) for tid in tids.split(',') if tid.strip()) if tids.strip() else False
 
                 while j < end and depth > 0:
                     t = actions[j].type
@@ -251,7 +251,7 @@ class MacroExecutor(threading.Thread):
                         else:
                             a_elif = actions[j]
                             trigger_id_elif = a_elif.params.get('trigger_id', '')
-                            current_cond = lambda tid=trigger_id_elif: self._check_condition(tid)
+                            current_cond = lambda tids=trigger_id_elif: all(self._check_condition(tid.strip()) for tid in tids.split(',') if tid.strip()) if tids.strip() else False
                     j += 1
 
                 for b_start, b_end, cond_check in branches:
