@@ -398,7 +398,8 @@ class TriggerEditorPanel(QWidget):
 
         elif self.trigger.type == 'text':
             try:
-                text = _ocr.recognize_text_only(img)
+                allowlist = '0123456789.-%:/ ' if self.trigger.match_mode == 'number' else None
+                text = _ocr.recognize_text_only(img, allowlist=allowlist)
             except Exception as e:
                 QMessageBox.critical(self, "OCR 错误", f"执行 OCR 识别时发生错误:\n{e}")
                 return

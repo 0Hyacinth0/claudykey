@@ -132,7 +132,8 @@ class MacroExecutor(threading.Thread):
             
         elif trig.type == 'text':
             try:
-                text = _ocr.recognize_text_only(img)
+                allowlist = '0123456789.-%:/ ' if trig.match_mode == 'number' else None
+                text = _ocr.recognize_text_only(img, allowlist=allowlist)
             except Exception as e:
                 logger.error(f"触发器 {trig.name} OCR 识别失败: {e}")
                 return False

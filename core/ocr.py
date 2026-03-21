@@ -66,7 +66,7 @@ class OCREngine:
             self._initialize_reader()
         return self._reader
     
-    def recognize(self, image: np.ndarray) -> List[Tuple[list, str, float]]:
+    def recognize(self, image: np.ndarray, allowlist: Optional[str] = None) -> List[Tuple[list, str, float]]:
         """识别图像中的文字。
         
         Args:
@@ -84,7 +84,13 @@ class OCREngine:
         
         try:
             rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            results = self.reader.readtext(rgb)
+            rgb = cv2.resize(rgb, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+            
+            if allowlist:
+                results = self.reader.readtext(rgb, allowlist=allowlist)
+            else:
+                results = self.reader.readtext(rgb)
+            
             logger.debug(f"OCR 识别完成，发现 {len(results)} 个文本区域")
             return results
         except cv2.error as e:
@@ -94,16 +100,17 @@ class OCREngine:
             logger.error(f"OCR 识别失败: {e}")
             raise RuntimeError(f"OCR 识别失败: {e}") from e
     
-    def recognize_text_only(self, image: np.ndarray) -> str:
+    def recognize_text_only(self, image: np.ndarray, allowlist: Optional[str] = None) -> str:
         """识别图像中的文字并返回拼接后的字符串。
         
         Args:
             image: BGR 格式的图像数组。
-            
+            allowlist: 允许识别出的字符集合，如 '0123456789.-%:/ '
+        
         Returns:
             所有识别文字拼接后的字符串。
         """
-        results = self.recognize(image)
+        results = self.recognize(image, allowlist=allowlist)
         text = ' '.join(r[1] for r in results)
         return text
     
@@ -131,28 +138,30 @@ def _get_engine() -> OCREngine:
     return _engine
 
 
-def recognize(image: np.ndarray) -> List[Tuple[list, str, float]]:
+def recognize(image: np.ndarray, allowlist: Optional[str] = None) -> List[Tuple[list, str, float]]:
     """识别图像中的文字。
     
     Args:
         image: BGR 格式的图像数组。
+        allowlist: 可选，允许识别的字符。
         
     Returns:
         识别结果列表，每个元素为 (bbox, text, confidence) 元组。
     """
-    return _get_engine().recognize(image)
+    return _get_engine().recognize(image, allowlist=allowlist)
 
 
-def recognize_text_only(image: np.ndarray) -> str:
+def recognize_text_only(image: np.ndarray, allowlist: Optional[str] = None) -> str:
     """识别图像中的文字并返回拼接后的字符串。
     
     Args:
         image: BGR 格式的图像数组。
+        allowlist: 可选，允许识别的字符。
         
     Returns:
         所有识别文字拼接后的字符串。
     """
-    return _get_engine().recognize_text_only(image)
+    return _get_engine().recognize_text_only(image, allowlist=allowlist)
 
 
 def is_ready() -> bool:
