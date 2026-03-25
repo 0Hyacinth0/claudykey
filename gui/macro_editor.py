@@ -323,6 +323,15 @@ class ActionDialog(QDialog):
         self.show()
         self._on_type_changed()  # Rebuild form with new values
 
+    def accept(self):
+        self._sync_values_from_widgets()
+        t = self.type_combo.currentData()
+        if t == 'key' and not self._val_key.strip():
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "无效按键", "按键设定不能为空。")
+            return
+        super().accept()
+
     def get_action(self) -> Action:
         self._sync_values_from_widgets()
         t = self.type_combo.currentData()
@@ -610,9 +619,12 @@ class MacroEditorPanel(QWidget):
         idx = self._selected_index()
         if idx < 0:
             return
-        del self.sequence.actions[idx]
-        self._refresh_list()
-        self.changed.emit()
+        from PyQt6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(self, '确认删除', f'确定要删除所选动作吗？', QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            del self.sequence.actions[idx]
+            self._refresh_list()
+            self.changed.emit()
 
     def _move_up(self):
         if not self.sequence:

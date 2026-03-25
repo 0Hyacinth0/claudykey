@@ -112,8 +112,15 @@ class MainWindow(QMainWindow):
         
         m_lay.addWidget(m_list_cont)
         
+        self._m_right_stack = QStackedWidget()
+        self._macro_editor_empty = QLabel('⊞\n请在左侧选择或创建一个宏以开始编辑')
+        self._macro_editor_empty.setObjectName('empty_state')
+        self._macro_editor_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._m_right_stack.addWidget(self._macro_editor_empty)
+        
         self.macro_editor = MacroEditorPanel()
-        m_lay.addWidget(self.macro_editor, 1)
+        self._m_right_stack.addWidget(self.macro_editor)
+        m_lay.addWidget(self._m_right_stack, 1)
 
         # Page 1: Trigger Workspace
         trig_page = QWidget()
@@ -155,8 +162,15 @@ class MainWindow(QMainWindow):
 
         t_lay.addWidget(t_list_cont)
 
+        self._t_right_stack = QStackedWidget()
+        self._trigger_editor_empty = QLabel('⭃\n请在左侧选择或创建一个触发器以开始编辑')
+        self._trigger_editor_empty.setObjectName('empty_state')
+        self._trigger_editor_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._t_right_stack.addWidget(self._trigger_editor_empty)
+        
         self.trigger_editor = TriggerEditorPanel()
-        t_lay.addWidget(self.trigger_editor, 1)
+        self._t_right_stack.addWidget(self.trigger_editor)
+        t_lay.addWidget(self._t_right_stack, 1)
 
         self.stack.addWidget(macro_page)
         self.stack.addWidget(trig_page)
@@ -233,7 +247,9 @@ class MainWindow(QMainWindow):
     def _on_macro_selected(self, row: int):
         self.controller.active_macro_idx = row
         if row < 0 or row >= len(self.controller.project.macros):
+            self._m_right_stack.setCurrentIndex(0)
             return
+        self._m_right_stack.setCurrentIndex(1)
         self.trigger_list.clearSelection()
         seq = self.controller.project.macros[row]
         self.macro_editor.project = self.controller.project
@@ -241,7 +257,9 @@ class MainWindow(QMainWindow):
 
     def _on_trigger_selected(self, row: int):
         if row < 0 or row >= len(self.controller.project.triggers):
+            self._t_right_stack.setCurrentIndex(0)
             return
+        self._t_right_stack.setCurrentIndex(1)
         self.macro_list.clearSelection()
         trig = self.controller.project.triggers[row]
         self.trigger_editor.load_trigger(trig, self.controller.project)

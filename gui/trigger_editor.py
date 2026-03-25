@@ -312,10 +312,12 @@ class TriggerEditorPanel(QWidget):
 
     # ──────────────────────────────────────────── Region / Template
     def _select_region(self):
+        self.window().setWindowOpacity(0.5)
         self._sel = RegionSelector()
         self._sel.region_selected.connect(self._on_region_selected)
 
     def _on_region_selected(self, x, y, w, h):
+        self.window().setWindowOpacity(1.0)
         if self.trigger:
             self.trigger.region = (x, y, w, h)
             self._update_region_label((x, y, w, h))
@@ -324,12 +326,14 @@ class TriggerEditorPanel(QWidget):
     def _capture_template(self):
         if not self.trigger:
             return
+        self.window().setWindowOpacity(0.5)
         path = self._make_template_path()
         self._sel = RegionSelector(capture_template=True, template_path=path)
         self._sel.region_selected.connect(
             lambda x, y, w, h: self._on_template_captured(path, x, y, w, h))
 
     def _on_template_captured(self, path, x, y, w, h):
+        self.window().setWindowOpacity(1.0)
         if self.trigger:
             self.trigger.template_path = path
             self.trigger.region = (x, y, w, h)
@@ -397,6 +401,9 @@ class TriggerEditorPanel(QWidget):
                 QMessageBox.critical(self, "图像匹配出错", f"执行图像匹配时发生错误:\n{e}")
 
         elif self.trigger.type == 'text':
+            if self.trigger.match_mode != 'number' and not str(self.trigger.target_text).strip():
+                QMessageBox.warning(self, "目标无效", "请填写需要识别的文字内容，否则无法进行匹配。")
+                return
             try:
                 allowlist = '0123456789.-%:/ ' if self.trigger.match_mode == 'number' else None
                 text = _ocr.recognize_text_only(img, allowlist=allowlist)
