@@ -775,3 +775,33 @@ QLabel#tmpl_empty {
     font-size: 11px;
 }
 """
+
+# Constants for MacroEditor Tags Extracted from Inline Styles
+MACRO_TAG_STYLES = {
+    'click':        ('⌖ 点击',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'right_click':  ('⌖ 右键',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'double_click': ('⌖ 双击',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'move':         ('↗ 移动',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
+    'key':          ('⌘ 按键',     '#22c55e', 'transparent',  'rgba(34,197,94,0.4)',   '#86efac'),
+    'delay':        ('⧗ 延时',     '#fbbf24', 'transparent',  'rgba(251,191,36,0.4)',  '#fde68a'),
+    'loop_start':   ('⟳ 循环开始', '#a855f7', 'transparent',  'rgba(168,85,247,0.4)',  '#d8b4fe'),
+    'loop_end':     ('⟲ 循环结束', '#a855f7', 'transparent',  'rgba(168,85,247,0.4)',  '#d8b4fe'),
+    'if':           ('⭃ 如果',     '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+    'elif':         ('⭃ 否则如果', '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+    'else_start':   ('⭃ 否则',     '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+    'end_if':       ('⭃ 结束判断', '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
+}
+
+STYLE_HINT_LBL = 'color:rgba(180,185,220,0.4);font-size:11px;'
+STYLE_PARAM_LBL = """
+    QLabel {
+        color: rgba(200, 205, 232, 0.65);
+        font-size: 12px;
+        background: transparent;
+    }
+"""
+
+STYLE_STATE_IDLE = 'color:#1fa357;'
+STYLE_STATE_RUNNING = 'color:#d6871a;'
+STYLE_STATE_ERROR = 'color:#d94141;'
+STYLE_HOTKEY_DIALOG_LBL = 'font-size: 14px; color: #d15c89; font-weight: bold;'

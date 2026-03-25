@@ -19,20 +19,7 @@ from .region_selector import PointSelector
 #  Action type → visual tag mapping
 #    (label, dot_color, tag_bg, tag_border, tag_text_color)
 # ══════════════════════════════════════════════════════════════
-_TAG_STYLES = {
-    'click':        ('⌖ 点击',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
-    'right_click':  ('⌖ 右键',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
-    'double_click': ('⌖ 双击',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
-    'move':         ('↗ 移动',     '#3b82f6', 'transparent',  'rgba(59,130,246,0.4)',  '#93c5fd'),
-    'key':          ('⌘ 按键',     '#22c55e', 'transparent',  'rgba(34,197,94,0.4)',   '#86efac'),
-    'delay':        ('⧗ 延时',     '#fbbf24', 'transparent',  'rgba(251,191,36,0.4)',  '#fde68a'),
-    'loop_start':   ('⟳ 循环开始', '#a855f7', 'transparent',  'rgba(168,85,247,0.4)',  '#d8b4fe'),
-    'loop_end':     ('⟲ 循环结束', '#a855f7', 'transparent',  'rgba(168,85,247,0.4)',  '#d8b4fe'),
-    'if':           ('⭃ 如果',     '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
-    'elif':         ('⭃ 否则如果', '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
-    'else_start':   ('⭃ 否则',     '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
-    'end_if':       ('⭃ 结束判断', '#06b6d4', 'transparent',  'rgba(6,182,212,0.4)',   '#67e8f9'),
-}
+from gui.theme import MACRO_TAG_STYLES, STYLE_HINT_LBL, STYLE_PARAM_LBL
 
 def _param_text(action: Action) -> str:
     """Extract a short parameter summary for display."""
@@ -62,7 +49,7 @@ def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
     lay.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
     # Resolve style
-    info = _TAG_STYLES.get(action.type, ('•', '#7c6ef8', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0.3)', '#a5b4fc'))
+    info = MACRO_TAG_STYLES.get(action.type, ('•', '#7c6ef8', 'rgba(99,102,241,0.25)', 'rgba(99,102,241,0.3)', '#a5b4fc'))
     label, dot_color, tag_bg, tag_border, tag_fg = info
 
     # Color dot
@@ -96,13 +83,7 @@ def _make_action_widget(action: Action, depth: int = 0) -> QWidget:
     pt = _param_text(action)
     if pt:
         param = QLabel(pt)
-        param.setStyleSheet('''
-            QLabel {
-                color: rgba(200, 205, 232, 0.65);
-                font-size: 12px;
-                background: transparent;
-            }
-        ''')
+        param.setStyleSheet(STYLE_PARAM_LBL)
         lay.addWidget(param, 0, Qt.AlignmentFlag.AlignVCenter)
 
     lay.addStretch()
@@ -263,7 +244,7 @@ class ActionDialog(QDialog):
             self._w_key.setText(self._val_key)
             self.form_layout.addRow('按键组合:', self._w_key)
             hint = QLabel('示例: ctrl+c、f5、alt+F4、enter')
-            hint.setStyleSheet('color:rgba(180,185,220,0.4);font-size:11px;')
+            hint.setStyleSheet(STYLE_HINT_LBL)
             self.form_layout.addRow('', hint)
         elif t == 'delay':
             self._w_ms = QSpinBox(); self._w_ms.setRange(1, 60000)
@@ -275,16 +256,16 @@ class ActionDialog(QDialog):
             self._w_count.setValue(self._val_count)
             self.form_layout.addRow('循环次数:', self._w_count)
             hint = QLabel('-1 = 无限循环，直到手动停止')
-            hint.setStyleSheet('color:rgba(180,185,220,0.4);font-size:11px;')
+            hint.setStyleSheet(STYLE_HINT_LBL)
             self.form_layout.addRow('', hint)
         elif t == 'loop_end':
             lbl = QLabel('无参数 — 配合"开始循环"使用')
-            lbl.setStyleSheet('color:rgba(180,185,220,0.4);')
+            lbl.setStyleSheet(STYLE_HINT_LBL)
             self.form_layout.addRow(lbl)
             
         elif t in ('else_start', 'end_if'):
             lbl = QLabel('无参数 — 配合条件控制流使用')
-            lbl.setStyleSheet('color:rgba(180,185,220,0.4);')
+            lbl.setStyleSheet(STYLE_HINT_LBL)
             self.form_layout.addRow(lbl)
             
         elif t in ('if', 'elif'):
@@ -426,7 +407,7 @@ class MacroEditorPanel(QWidget):
         self._delay_max.valueChanged.connect(self._on_delay_changed)
         delay_row.addWidget(self._delay_max)
         delay_hint = QLabel('拟真')
-        delay_hint.setStyleSheet('color:rgba(180,185,220,0.35);font-size:11px;')
+        delay_hint.setStyleSheet(STYLE_HINT_LBL)
         delay_row.addWidget(delay_hint)
         delay_row.addStretch()
         ic_lay.addLayout(delay_row)
@@ -507,7 +488,7 @@ class MacroEditorPanel(QWidget):
         bc_lay.addLayout(run_row)
 
         hint_lbl = QLabel('仅运行一次此宏进行测试，不开启全局触发检测')
-        hint_lbl.setStyleSheet('color: rgba(180,185,220,0.3); font-size: 11px;')
+        hint_lbl.setStyleSheet(STYLE_HINT_LBL)
         hint_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         bc_lay.addWidget(hint_lbl)
 
